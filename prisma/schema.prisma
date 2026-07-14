@@ -1,0 +1,180 @@
+// Prisma schema - Prime Wash
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum CylinderTier {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum WorkOrderStatus {
+  AGENDADO
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum PaymentMethod {
+  DEBITO
+  CREDITO
+  PIX
+}
+
+enum ReferralSource {
+  INSTAGRAM
+  INDICACAO
+  CARTAO_VISITA
+  FACHADA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workOrders WorkOrder[] @relation("CreatedBy")
+
+  @@map("users")
+}
+
+model Client {
+  id             String          @id @default(cuid())
+  name           String
+  phone          String
+  email          String?
+  document       String?
+  city           String?
+  state          String?
+  referralSource ReferralSource?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  motorcycles Motorcycle[]
+  workOrders  WorkOrder[]
+
+  @@index([phone])
+  @@index([name])
+  @@map("clients")
+}
+
+model Motorcycle {
+  id              String       @id @default(cuid())
+  clientId        String
+  brand           String
+  model           String
+  color           String
+  plate           String
+  cylinderTier    CylinderTier @default(MEDIA)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  client     Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+
+  @@index([plate])
+  @@index([clientId])
+  @@map("motorcycles")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  prices           ServicePrice[]
+  workOrderServices WorkOrderService[]
+
+  @@map("services")
+}
+
+model ServicePrice {
+  id        String       @id @default(cuid())
+  serviceId String
+  tier      CylinderTier
+  price     Decimal      @db.Decimal(10, 2)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, tier])
+  @@map("service_prices")
+}
+
+model WorkOrder {
+  id            String          @id @default(cuid())
+  number        Int             @unique @default(autoincrement())
+  clientId      String
+  motorcycleId  String
+  status        WorkOrderStatus @default(AGENDADO)
+  scheduledAt   DateTime
+  estimatedDeliveryAt DateTime?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  paymentMethod PaymentMethod?
+  totalAmount   Decimal         @default(0) @db.Decimal(10, 2)
+  notes         String?
+  googleEventId String?
+  createdById   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  client      Client        @relation(fields: [clientId], references: [id])
+  motorcycle  Motorcycle    @relation(fields: [motorcycleId], references: [id])
+  createdBy   User?         @relation("CreatedBy", fields: [createdById], references: [id])
+  services    WorkOrderService[]
+  photos      DamagePhoto[]
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([clientId])
+  @@map("work_orders")
+}
+
+model WorkOrderService {
+  id          String       @id @default(cuid())
+  workOrderId String
+  serviceId   String
+  tier        CylinderTier
+  price       Decimal      @db.Decimal(10, 2)
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  service   Service   @relation(fields: [serviceId], references: [id])
+
+  @@map("work_order_services")
+}
+
+model DamagePhoto {
+  id          String   @id @default(cuid())
+  workOrderId String
+  description String?
+  bodyArea    String?
+  photoPath   String
+  createdAt   DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("damage_photos")
+}

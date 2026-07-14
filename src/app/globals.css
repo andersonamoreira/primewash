@@ -1,26 +1,155 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Prime Wash brand palette (sampled from the logo) */
+  --pw-black: #05070a;
+  --pw-navy-950: #050b16;
+  --pw-navy-900: #0a1224;
+  --pw-navy-800: #0f1c33;
+  --pw-navy-700: #16294a;
+  --pw-navy-600: #1d3760;
+  --pw-blue-500: #1e9fe8;
+  --pw-blue-400: #3fb0ee;
+  --pw-blue-300: #7cc9f2;
+  --pw-silver-100: #f5f6f7;
+  --pw-silver-300: #cdd3da;
+  --pw-silver-500: #8994a3;
+  --pw-gold-500: #d9a441;
+  --pw-gold-400: #e6bc6b;
+
+  --background: var(--pw-navy-950);
+  --foreground: var(--pw-silver-100);
+
+  --surface: var(--pw-navy-900);
+  --surface-raised: var(--pw-navy-800);
+  --border-subtle: color-mix(in srgb, var(--pw-silver-100) 12%, transparent);
+  --border-strong: color-mix(in srgb, var(--pw-silver-100) 20%, transparent);
+
+  --primary: var(--pw-blue-500);
+  --primary-foreground: #ffffff;
+  --accent: var(--pw-gold-500);
+  --accent-foreground: #1a1305;
+
+  --muted: var(--pw-navy-800);
+  --muted-foreground: var(--pw-silver-500);
+
+  --success: #2fbf71;
+  --warning: var(--pw-gold-500);
+  --danger: #e5484d;
+
+  /* Fixed category accents used for stat tiles / KPI icons (same across themes) */
+  --stat-blue: var(--pw-blue-500);
+  --stat-green: #22c55e;
+  --stat-violet: #8b5cf6;
+  --stat-orange: #f59e0b;
+  --stat-teal: #14b8a6;
+
+  --radius: 0.875rem;
+}
+
+:root[data-theme="light"] {
+  --background: #f4f6f9;
+  --foreground: var(--pw-navy-900);
+
+  --surface: #ffffff;
+  --surface-raised: #eef1f6;
+  --border-subtle: rgba(10, 18, 36, 0.08);
+  --border-strong: rgba(10, 18, 36, 0.16);
+
+  --primary: var(--pw-blue-500);
+  --primary-foreground: #ffffff;
+  --accent: var(--pw-gold-500);
+  --accent-foreground: #1a1305;
+
+  --muted: #eef1f6;
+  --muted-foreground: #667085;
+
+  --success: #16a34a;
+  --warning: #b8842e;
+  --danger: #dc2626;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --color-stat-blue: var(--stat-blue);
+  --color-stat-green: var(--stat-green);
+  --color-stat-violet: var(--stat-violet);
+  --color-stat-orange: var(--stat-orange);
+  --color-stat-teal: var(--stat-teal);
+
+  --color-pw-navy-950: var(--pw-navy-950);
+  --color-pw-navy-900: var(--pw-navy-900);
+  --color-pw-navy-800: var(--pw-navy-800);
+  --color-pw-navy-700: var(--pw-navy-700);
+  --color-pw-navy-600: var(--pw-navy-600);
+  --color-pw-blue-500: var(--pw-blue-500);
+  --color-pw-blue-400: var(--pw-blue-400);
+  --color-pw-blue-300: var(--pw-blue-300);
+  --color-pw-silver-100: var(--pw-silver-100);
+  --color-pw-silver-300: var(--pw-silver-300);
+  --color-pw-silver-500: var(--pw-silver-500);
+  --color-pw-gold-500: var(--pw-gold-500);
+  --color-pw-gold-400: var(--pw-gold-400);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.4rem);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(
+      1200px 800px at 10% -10%,
+      color-mix(in srgb, var(--pw-blue-500) 10%, transparent),
+      transparent 60%
+    ),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+[data-theme="light"] body {
+  background: var(--background);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--pw-blue-500) 40%, transparent);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--pw-navy-600) transparent;
 }
