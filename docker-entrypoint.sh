@@ -2,7 +2,7 @@
 set -e
 
 echo "Aguardando o banco de dados ficar disponível..."
-until echo "SELECT 1;" | npx prisma db execute --stdin > /dev/null 2>&1; do
+until echo "SELECT 1;" | npx prisma db execute --stdin --schema=./prisma/schema.prisma > /dev/null 2>&1; do
   sleep 1
 done
 
