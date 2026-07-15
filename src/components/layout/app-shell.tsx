@@ -16,9 +16,9 @@ export function AppShell({
   return (
     <div className="flex min-h-screen">
       <Sidebar role={role} name={name} email={email} />
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <Topbar />
-        <main className="flex-1 p-4 pb-24 sm:p-6 lg:pb-6">{children}</main>
+        <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6 lg:pb-6">{children}</main>
       </div>
       <BottomNav role={role} name={name} email={email} />
     </div>
