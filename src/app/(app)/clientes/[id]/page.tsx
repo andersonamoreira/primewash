@@ -218,7 +218,7 @@ export default async function ClientDetailPage({
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatDateTime(wo.scheduledAt)} ·{" "}
-                    {wo.services.map((s) => s.service.name).join(", ") || "Sem serviços"}
+                    {wo.services.map((s) => (s.service?.name ?? s.customName)).join(", ") || "Sem serviços"}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">

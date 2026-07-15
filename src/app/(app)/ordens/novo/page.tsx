@@ -22,7 +22,7 @@ export default async function NewWorkOrderPage({
     prisma.service.findMany({
       where: { active: true },
       orderBy: { sortOrder: "asc" },
-      include: { prices: true },
+      include: { prices: true, group: true },
     }),
   ]);
 
@@ -47,6 +47,7 @@ export default async function NewWorkOrderPage({
         services={services.map((s) => ({
           id: s.id,
           name: s.name,
+          groupName: s.group?.name ?? null,
           prices: s.prices.map((p) => ({ tier: p.tier, price: p.price.toString() })),
         }))}
         initialClientId={clientId}

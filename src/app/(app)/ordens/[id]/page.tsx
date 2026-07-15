@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, StickyNote } from "lucide-react";
+import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, StickyNote, Printer } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { WorkOrderStatusBadge } from "@/components/work-orders/status-badge";
 import { StatusActions } from "@/components/work-orders/status-actions";
+import { WorkOrderEditDialog } from "@/components/work-orders/work-order-edit-dialog";
 import { PaymentMethodEditor } from "@/components/work-orders/payment-method-editor";
 import { PhotoChecklist } from "@/components/work-orders/photo-checklist";
 import { deleteWorkOrderAction } from "@/lib/actions/work-orders";
 import { CYLINDER_TIER_LABELS, formatCurrency, formatDateTime } from "@/lib/format";
+
+const EDITABLE_STATUSES = new Set(["AGENDADO", "EM_ANDAMENTO"]);
 
 export default async function WorkOrderDetailPage({
   params,
@@ -18,17 +22,28 @@ export default async function WorkOrderDetailPage({
 }) {
   const { id } = await params;
 
-  const workOrder = await prisma.workOrder.findUnique({
-    where: { id },
-    include: {
-      client: true,
-      motorcycle: true,
-      services: { include: { service: true } },
-      photos: { orderBy: { createdAt: "desc" } },
-    },
-  });
+  const [workOrder, catalogServices] = await Promise.all([
+    prisma.workOrder.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        motorcycle: true,
+        services: { include: { service: true } },
+        photos: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    prisma.service.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+      include: { prices: true, group: true },
+    }),
+  ]);
 
   if (!workOrder) notFound();
+
+  const canEdit = EDITABLE_STATUSES.has(workOrder.status);
+  const subtotal = workOrder.services.reduce((sum, s) => sum + Number(s.price), 0);
+  const discount = Number(workOrder.discount);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -54,7 +69,33 @@ export default async function WorkOrderDetailPage({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {canEdit && (
+            <WorkOrderEditDialog
+              workOrderId={workOrder.id}
+              cylinderTier={workOrder.motorcycle.cylinderTier}
+              scheduledAt={workOrder.scheduledAt}
+              estimatedDeliveryAt={workOrder.estimatedDeliveryAt}
+              discount={workOrder.discount.toString()}
+              notes={workOrder.notes}
+              existingServices={workOrder.services.map((s) => ({
+                serviceId: s.serviceId,
+                customName: s.customName,
+                price: s.price.toString(),
+              }))}
+              services={catalogServices.map((s) => ({
+                id: s.id,
+                name: s.name,
+                groupName: s.group?.name ?? null,
+                prices: s.prices.map((p) => ({ tier: p.tier, price: p.price.toString() })),
+              }))}
+            />
+          )}
+          <Button asChild size="sm" variant="secondary">
+            <Link href={`/ordens/${workOrder.id}/imprimir`} target="_blank">
+              <Printer className="size-4" /> Imprimir
+            </Link>
+          </Button>
           <StatusActions workOrderId={workOrder.id} status={workOrder.status} />
           <DeleteButton
             confirmMessage={`Excluir a OS #${workOrder.number}? Essa ação não pode ser desfeita.`}
@@ -97,12 +138,26 @@ export default async function WorkOrderDetailPage({
           <div className="flex flex-col gap-2">
             {workOrder.services.map((s) => (
               <div key={s.id} className="flex items-center justify-between text-sm">
-                <span className="text-foreground">{s.service.name}</span>
+                <span className="text-foreground">{s.service?.name ?? s.customName}</span>
                 <span className="text-muted-foreground">{formatCurrency(s.price.toString())}</span>
               </div>
             ))}
           </div>
-          <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-3">
+          {discount > 0 && (
+            <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-3 text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+          )}
+          {discount > 0 && (
+            <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Desconto</span>
+              <span>- {formatCurrency(discount)}</span>
+            </div>
+          )}
+          <div
+            className={`mt-3 flex items-center justify-between pt-3 ${discount > 0 ? "" : "border-t border-border-subtle"}`}
+          >
             <span className="font-semibold text-foreground">Total</span>
             <span className="text-lg font-bold text-foreground">
               {formatCurrency(workOrder.totalAmount.toString())}

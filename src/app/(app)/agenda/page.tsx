@@ -133,7 +133,7 @@ export default async function AgendaPage({
                 <p className="font-medium text-foreground">{wo.client.name}</p>
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Bike className="size-3.5" /> {wo.motorcycle.brand} {wo.motorcycle.model} ·{" "}
-                  {wo.services.map((s) => s.service.name).join(", ") || "Sem serviços"}
+                  {wo.services.map((s) => (s.service?.name ?? s.customName)).join(", ") || "Sem serviços"}
                 </p>
                 {wo.estimatedDeliveryAt && (
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">

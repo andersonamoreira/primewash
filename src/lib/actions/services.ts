@@ -15,6 +15,7 @@ export async function createServiceAction(_prevState: string | undefined, formDa
   const parsed = serviceSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
+    groupId: formData.get("groupId"),
     priceBaixa: formData.get("priceBaixa"),
     priceMedia: formData.get("priceMedia"),
     priceAlta: formData.get("priceAlta"),
@@ -28,6 +29,7 @@ export async function createServiceAction(_prevState: string | undefined, formDa
     data: {
       name: parsed.data.name,
       description: parsed.data.description,
+      groupId: parsed.data.groupId,
       sortOrder: count,
       prices: {
         create: [
@@ -52,6 +54,7 @@ export async function updateServiceAction(
   const parsed = serviceSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
+    groupId: formData.get("groupId"),
     priceBaixa: formData.get("priceBaixa"),
     priceMedia: formData.get("priceMedia"),
     priceAlta: formData.get("priceAlta"),
@@ -64,6 +67,7 @@ export async function updateServiceAction(
     data: {
       name: parsed.data.name,
       description: parsed.data.description,
+      groupId: parsed.data.groupId,
       prices: {
         update: [
           { where: { serviceId_tier: { serviceId, tier: "BAIXA" } }, data: { price: parsed.data.priceBaixa } },

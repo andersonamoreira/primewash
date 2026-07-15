@@ -15,6 +15,7 @@ export const serviceSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => (v === "" ? undefined : v)),
+  groupId: z.string().min(1, "Selecione um grupo"),
   priceBaixa: priceField,
   priceMedia: priceField,
   priceAlta: priceField,

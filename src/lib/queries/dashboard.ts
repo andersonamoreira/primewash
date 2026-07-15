@@ -1,13 +1,12 @@
-import { startOfMonth, endOfMonth, startOfDay, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { monthBoundsInAppTimeZone, getHourInAppTimeZone, formatDayKeyInAppTimeZone } from "@/lib/format";
 
 export async function getDashboardData(reference: Date = new Date()) {
-  const monthStart = startOfMonth(reference);
-  const monthEnd = endOfMonth(reference);
+  const { start: monthStart, end: monthEnd, month, daysInMonth, today } = monthBoundsInAppTimeZone(reference);
 
   const [monthOrders, upcomingCount, allTimeClients] = await Promise.all([
     prisma.workOrder.findMany({
-      where: { scheduledAt: { gte: monthStart, lte: monthEnd } },
+      where: { scheduledAt: { gte: monthStart, lt: monthEnd } },
       include: {
         motorcycle: true,
         services: { include: { service: true } },
@@ -37,6 +36,7 @@ export async function getDashboardData(reference: Date = new Date()) {
   const serviceCounts = new Map<string, number>();
   for (const wo of activeOrders) {
     for (const line of wo.services) {
+      if (!line.service) continue;
       serviceCounts.set(line.service.name, (serviceCounts.get(line.service.name) ?? 0) + 1);
     }
   }
@@ -47,7 +47,7 @@ export async function getDashboardData(reference: Date = new Date()) {
 
   const hourCounts = new Map<number, number>();
   for (const wo of activeOrders) {
-    const hour = wo.scheduledAt.getHours();
+    const hour = getHourInAppTimeZone(wo.scheduledAt);
     hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
   }
   const byHour = Array.from({ length: 24 }, (_, hour) => ({
@@ -65,15 +65,14 @@ export async function getDashboardData(reference: Date = new Date()) {
 
   const dailyRevenue = new Map<string, number>();
   for (const wo of completedOrders) {
-    const key = format(wo.finishedAt ?? wo.scheduledAt, "dd/MM");
+    const key = formatDayKeyInAppTimeZone(wo.finishedAt ?? wo.scheduledAt);
     dailyRevenue.set(key, (dailyRevenue.get(key) ?? 0) + Number(wo.totalAmount));
   }
+
+  const lastDay = Math.min(daysInMonth, today);
   const revenueSeries: { date: string; total: number }[] = [];
-  const cursor = startOfDay(monthStart);
-  const today = startOfDay(new Date());
-  const lastDay = monthEnd < today ? monthEnd : today;
-  for (let d = new Date(cursor); d <= lastDay; d.setDate(d.getDate() + 1)) {
-    const key = format(d, "dd/MM");
+  for (let day = 1; day <= lastDay; day++) {
+    const key = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
     revenueSeries.push({ date: key, total: dailyRevenue.get(key) ?? 0 });
   }
 

@@ -1,3 +1,5 @@
+export const APP_TIME_ZONE = "America/Sao_Paulo";
+
 export function greetingForHour(hour: number) {
   if (hour < 12) return "Bom dia";
   if (hour < 18) return "Boa tarde";
@@ -10,6 +12,7 @@ export function formatLongDate(value: Date) {
     day: "2-digit",
     month: "long",
     year: "numeric",
+    timeZone: APP_TIME_ZONE,
   }).format(value);
   return formatted.replace(/\p{L}+/gu, (word) => word[0].toUpperCase() + word.slice(1));
 }
@@ -28,6 +31,7 @@ export function formatDate(value: Date | string) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
 
@@ -39,6 +43,7 @@ export function formatDateTime(value: Date | string) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
 
@@ -47,7 +52,101 @@ export function formatTime(value: Date | string) {
   return new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
+}
+
+/** Converte um Date (instante UTC) para o valor de string que um <input type="datetime-local">
+ * espera, representando o horário local de São Paulo (não o fuso do servidor/navegador). */
+export function toDateTimeLocalValue(value: Date | string) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+/** Converte o valor de um <input type="datetime-local"> (string sem fuso, ex: "2026-07-16T09:00"),
+ * interpretado como horário de São Paulo, para o instante UTC correto (ISO string). */
+export function fromDateTimeLocalValue(value: string) {
+  const [datePart, timePart] = value.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+
+  // Descobre o offset de São Paulo (em minutos) para esse instante aproximado usando UTC como palpite inicial.
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  const offsetMinutes = getTimeZoneOffsetMinutes(utcGuess, APP_TIME_ZONE);
+  const utcMillis = Date.UTC(year, month - 1, day, hour, minute) - offsetMinutes * 60 * 1000;
+  return new Date(utcMillis).toISOString();
+}
+
+function getTimeZoneOffsetMinutes(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const asUTC = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second")
+  );
+  return (asUTC - date.getTime()) / 60000;
+}
+
+/** Extrai hora/dia/mês/ano no fuso de São Paulo, independente do fuso do processo (servidor/navegador). */
+export function getDatePartsInAppTimeZone(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { year: get("year"), month: get("month"), day: get("day"), hour: get("hour") };
+}
+
+export function getHourInAppTimeZone(date: Date) {
+  return getDatePartsInAppTimeZone(date).hour;
+}
+
+export function formatDayKeyInAppTimeZone(date: Date) {
+  const { day, month } = getDatePartsInAppTimeZone(date);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(day)}/${pad(month)}`;
+}
+
+/** Limites do mês (início inclusivo, fim exclusivo) considerando o calendário de São Paulo,
+ * não o fuso do servidor. */
+export function monthBoundsInAppTimeZone(reference: Date) {
+  const { year, month, day: today } = getDatePartsInAppTimeZone(reference);
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  const start = new Date(fromDateTimeLocalValue(`${year}-${pad(month)}-01T00:00`));
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const end = new Date(fromDateTimeLocalValue(`${nextYear}-${pad(nextMonth)}-01T00:00`));
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  return { start, end, year, month, daysInMonth, today };
 }
 
 export function daysSince(value: Date | string) {

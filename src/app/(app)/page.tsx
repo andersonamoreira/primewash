@@ -6,7 +6,7 @@ import { ChartCard } from "@/components/dashboard/chart-card";
 import { SimpleBarChart } from "@/components/dashboard/charts/bar-chart";
 import { RevenueChart } from "@/components/dashboard/charts/revenue-chart";
 import { PaymentMethodBars } from "@/components/dashboard/charts/payment-method-bars";
-import { formatCurrency, greetingForHour, formatLongDate } from "@/lib/format";
+import { formatCurrency, greetingForHour, formatLongDate, getHourInAppTimeZone } from "@/lib/format";
 
 export default async function DashboardPage() {
   const [session, data] = await Promise.all([auth(), getDashboardData()]);
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">
-          {greetingForHour(now.getHours())}
+          {greetingForHour(getHourInAppTimeZone(now))}
           {firstName ? `, ${firstName}` : ""}! 👋
         </h1>
         <p className="text-sm text-muted-foreground">{formatLongDate(now)}</p>

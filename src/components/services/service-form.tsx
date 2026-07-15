@@ -6,12 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 type ServiceFormProps = {
   action: (prevState: string | undefined, formData: FormData) => Promise<string | undefined>;
+  groups: { id: string; name: string }[];
   defaultValues?: {
     name?: string;
     description?: string | null;
+    groupId?: string | null;
     priceBaixa?: string;
     priceMedia?: string;
     priceAlta?: string;
@@ -20,7 +29,13 @@ type ServiceFormProps = {
   onSuccess?: () => void;
 };
 
-export function ServiceForm({ action, defaultValues, submitLabel = "Salvar", onSuccess }: ServiceFormProps) {
+export function ServiceForm({
+  action,
+  groups,
+  defaultValues,
+  submitLabel = "Salvar",
+  onSuccess,
+}: ServiceFormProps) {
   const [error, formAction, isPending] = useActionState(action, undefined);
   const wasPending = useRef(false);
 
@@ -44,6 +59,22 @@ export function ServiceForm({ action, defaultValues, submitLabel = "Salvar", onS
           defaultValue={defaultValues?.description ?? ""}
           placeholder="O que está incluso nesse pacote"
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="groupId">Grupo *</Label>
+        <Select name="groupId" defaultValue={defaultValues?.groupId ?? undefined}>
+          <SelectTrigger id="groupId">
+            <SelectValue placeholder="Selecione um grupo" />
+          </SelectTrigger>
+          <SelectContent>
+            {groups.map((group) => (
+              <SelectItem key={group.id} value={group.id}>
+                {group.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>

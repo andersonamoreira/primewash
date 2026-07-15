@@ -85,7 +85,7 @@ export default async function WorkOrdersPage({
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {wo.motorcycle.brand} {wo.motorcycle.model} ({wo.motorcycle.plate}) ·{" "}
-                  {wo.services.map((s) => s.service.name).join(", ") || "Sem serviços"}
+                  {wo.services.map((s) => (s.service?.name ?? s.customName)).join(", ") || "Sem serviços"}
                 </p>
                 <p className="text-xs text-muted-foreground">{formatDateTime(wo.scheduledAt)}</p>
               </div>

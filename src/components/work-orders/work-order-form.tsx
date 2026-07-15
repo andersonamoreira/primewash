@@ -18,9 +18,21 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  ServiceLineEditor,
+  useCustomLineKeyGenerator,
+  type CatalogService,
+  type CustomLine,
+} from "@/components/work-orders/service-line-editor";
 import { cn } from "@/lib/utils";
 import { createWorkOrderAction } from "@/lib/actions/work-orders";
-import { CYLINDER_TIER_LABELS, PAYMENT_METHOD_LABELS, formatCurrency } from "@/lib/format";
+import {
+  CYLINDER_TIER_LABELS,
+  PAYMENT_METHOD_LABELS,
+  formatCurrency,
+  toDateTimeLocalValue,
+  fromDateTimeLocalValue,
+} from "@/lib/format";
 import { CYLINDER_TIERS } from "@/lib/validations/client";
 import { MOTORCYCLE_BRANDS } from "@/lib/motorcycle-brands";
 
@@ -31,24 +43,19 @@ type ClientWithMotos = {
   motorcycles: { id: string; brand: string; model: string; plate: string; cylinderTier: string }[];
 };
 
-type ServiceOption = {
-  id: string;
-  name: string;
-  prices: { tier: string; price: string }[];
-};
-
 export function WorkOrderForm({
   clients,
   services,
   initialClientId,
 }: {
   clients: ClientWithMotos[];
-  services: ServiceOption[];
+  services: CatalogService[];
   initialClientId?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | undefined>();
+  const nextCustomKey = useCustomLineKeyGenerator();
 
   const [clientMode, setClientMode] = useState<"existing" | "new">(
     initialClientId ? "existing" : clients.length > 0 ? "existing" : "new"
@@ -70,18 +77,15 @@ export function WorkOrderForm({
     notes: "",
   });
 
-  const [scheduledAt, setScheduledAt] = useState(() => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  });
+  const [scheduledAt, setScheduledAt] = useState(() => toDateTimeLocalValue(new Date()));
   const [estimatedDeliveryAt, setEstimatedDeliveryAt] = useState(() => {
-    const now = new Date();
-    now.setHours(now.getHours() + 2);
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
+    const in2h = new Date();
+    in2h.setHours(in2h.getHours() + 2);
+    return toDateTimeLocalValue(in2h);
   });
   const [serviceIds, setServiceIds] = useState<string[]>([]);
+  const [customLines, setCustomLines] = useState<CustomLine[]>([]);
+  const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [notes, setNotes] = useState("");
 
@@ -90,26 +94,44 @@ export function WorkOrderForm({
       ? newMoto.cylinderTier
       : selectedClient?.motorcycles.find((m) => m.id === motorcycleId)?.cylinderTier;
 
-  const total = useMemo(() => {
-    if (!effectiveTier) return 0;
-    return services
+  const subtotal = useMemo(() => {
+    const catalogTotal = services
       .filter((s) => serviceIds.includes(s.id))
       .reduce((sum, s) => {
-        const price = s.prices.find((p) => p.tier === effectiveTier)?.price;
+        const price = effectiveTier ? s.prices.find((p) => p.tier === effectiveTier)?.price : undefined;
         return sum + (price ? Number(price) : 0);
       }, 0);
-  }, [services, serviceIds, effectiveTier]);
+    const customTotal = customLines.reduce((sum, l) => sum + (Number(l.price) || 0), 0);
+    return catalogTotal + customTotal;
+  }, [services, serviceIds, effectiveTier, customLines]);
+
+  const discountValue = Math.min(Number(discount) || 0, subtotal);
+  const total = subtotal - discountValue;
 
   function toggleService(id: string) {
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  }
+
+  function addCustomLine() {
+    setCustomLines((prev) => [...prev, { key: nextCustomKey(), name: "", price: "" }]);
+  }
+  function updateCustomLine(key: string, patch: Partial<CustomLine>) {
+    setCustomLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  }
+  function removeCustomLine(key: string) {
+    setCustomLines((prev) => prev.filter((l) => l.key !== key));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(undefined);
 
-    if (serviceIds.length === 0) {
+    if (serviceIds.length === 0 && customLines.length === 0) {
       setError("Selecione ao menos um serviço.");
+      return;
+    }
+    if (customLines.some((l) => !l.name.trim() || !(Number(l.price) > 0))) {
+      setError("Preencha nome e valor de todos os serviços avulsos.");
       return;
     }
 
@@ -129,9 +151,13 @@ export function WorkOrderForm({
               notes: newMoto.notes,
             }
           : undefined,
-      scheduledAt: new Date(scheduledAt).toISOString(),
-      estimatedDeliveryAt: new Date(estimatedDeliveryAt).toISOString(),
-      serviceIds,
+      scheduledAt: fromDateTimeLocalValue(scheduledAt),
+      estimatedDeliveryAt: fromDateTimeLocalValue(estimatedDeliveryAt),
+      services: [
+        ...serviceIds.map((serviceId) => ({ kind: "catalog" as const, serviceId })),
+        ...customLines.map((l) => ({ kind: "custom" as const, name: l.name, price: Number(l.price) })),
+      ],
+      discount: discountValue,
       paymentMethod: paymentMethod || undefined,
       notes,
     };
@@ -251,35 +277,16 @@ export function WorkOrderForm({
 
       <section className="rounded-xl border border-border-subtle bg-surface p-4 sm:p-5">
         <h2 className="mb-3 font-semibold text-foreground">Serviços</h2>
-        {!effectiveTier && (
-          <p className="mb-3 text-sm text-muted-foreground">
-            Selecione a moto para ver os preços da categoria de cilindrada correta.
-          </p>
-        )}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {services.map((service) => {
-            const price = effectiveTier
-              ? service.prices.find((p) => p.tier === effectiveTier)?.price
-              : undefined;
-            const checked = serviceIds.includes(service.id);
-            return (
-              <button
-                type="button"
-                key={service.id}
-                onClick={() => toggleService(service.id)}
-                className={cn(
-                  "flex items-center justify-between rounded-md border px-3 py-2.5 text-left text-sm transition-colors",
-                  checked ? "border-primary bg-primary/10" : "border-border-subtle hover:bg-surface-raised"
-                )}
-              >
-                <span className="text-foreground">{service.name}</span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  {price ? formatCurrency(price) : "—"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <ServiceLineEditor
+          services={services}
+          tier={effectiveTier}
+          selectedServiceIds={serviceIds}
+          onToggleService={toggleService}
+          customLines={customLines}
+          onAddCustomLine={addCustomLine}
+          onUpdateCustomLine={updateCustomLine}
+          onRemoveCustomLine={removeCustomLine}
+        />
       </section>
 
       <section className="rounded-xl border border-border-subtle bg-surface p-4 sm:p-5">
@@ -318,6 +325,16 @@ export function WorkOrderForm({
               </SelectContent>
             </Select>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="discount">Desconto (R$)</Label>
+            <Input
+              id="discount"
+              inputMode="decimal"
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              placeholder="0,00"
+            />
+          </div>
         </div>
         <div className="mt-4 flex flex-col gap-1.5">
           <Label htmlFor="notes">Observações</Label>
@@ -327,15 +344,24 @@ export function WorkOrderForm({
 
       {error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
-      <div className="flex items-center justify-between rounded-xl border border-border-strong bg-surface-raised p-4">
-        <div>
-          <p className="text-xs text-muted-foreground">Total estimado</p>
-          <p className="text-2xl font-bold text-foreground">{formatCurrency(total)}</p>
+      <div className="rounded-xl border border-border-strong bg-surface-raised p-4">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Subtotal</span>
+          <span>{formatCurrency(subtotal)}</span>
         </div>
-        <Button type="submit" size="lg" disabled={isPending}>
-          {isPending && <Loader2 className="size-4 animate-spin" />}
-          Abrir OS
-        </Button>
+        {discountValue > 0 && (
+          <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
+            <span>Desconto</span>
+            <span>- {formatCurrency(discountValue)}</span>
+          </div>
+        )}
+        <div className="mt-2 flex items-center justify-between border-t border-border-subtle pt-2">
+          <p className="text-xl font-bold text-foreground">{formatCurrency(total)}</p>
+          <Button type="submit" size="lg" disabled={isPending}>
+            {isPending && <Loader2 className="size-4 animate-spin" />}
+            Abrir OS
+          </Button>
+        </div>
       </div>
     </form>
   );

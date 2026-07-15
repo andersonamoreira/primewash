@@ -15,15 +15,17 @@ import { createServiceAction, updateServiceAction } from "@/lib/actions/services
 
 type ServiceDialogProps = {
   mode: "create" | "edit";
+  groups: { id: string; name: string }[];
   service?: {
     id: string;
     name: string;
     description: string | null;
+    groupId: string | null;
     prices: { tier: string; price: string }[];
   };
 };
 
-export function ServiceDialog({ mode, service }: ServiceDialogProps) {
+export function ServiceDialog({ mode, groups, service }: ServiceDialogProps) {
   const [open, setOpen] = useState(false);
 
   const action =
@@ -33,6 +35,7 @@ export function ServiceDialog({ mode, service }: ServiceDialogProps) {
     ? {
         name: service.name,
         description: service.description,
+        groupId: service.groupId,
         priceBaixa: service.prices.find((p) => p.tier === "BAIXA")?.price,
         priceMedia: service.prices.find((p) => p.tier === "MEDIA")?.price,
         priceAlta: service.prices.find((p) => p.tier === "ALTA")?.price,
@@ -58,6 +61,7 @@ export function ServiceDialog({ mode, service }: ServiceDialogProps) {
         </DialogHeader>
         <ServiceForm
           action={action}
+          groups={groups}
           defaultValues={defaultValues}
           submitLabel={mode === "create" ? "Criar serviço" : "Salvar alterações"}
           onSuccess={() => setOpen(false)}
