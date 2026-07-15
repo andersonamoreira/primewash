@@ -93,8 +93,13 @@ export default async function PrintWorkOrderPage({
         <tbody>
           {workOrder.services.map((s) => (
             <tr key={s.id} className="border-b border-gray-100">
-              <td className="py-2">{s.service?.name ?? s.customName}</td>
-              <td className="py-2 text-right">{formatCurrency(s.price.toString())}</td>
+              <td className="py-2">
+                <p>{s.service?.name ?? s.customName}</p>
+                {s.service?.description && (
+                  <p className="text-xs text-gray-500">{s.service.description}</p>
+                )}
+              </td>
+              <td className="py-2 text-right align-top">{formatCurrency(s.price.toString())}</td>
             </tr>
           ))}
         </tbody>

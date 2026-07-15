@@ -149,6 +149,16 @@ export function monthBoundsInAppTimeZone(reference: Date) {
   return { start, end, year, month, daysInMonth, today };
 }
 
+/** Converte uma string "YYYY-MM-DD" (dia no fuso de São Paulo) para o instante UTC de início desse dia. */
+export function dayStartInAppTimeZone(dateStr: string) {
+  return new Date(fromDateTimeLocalValue(`${dateStr}T00:00`));
+}
+
+/** Instante UTC exclusivo de fim de um dia "YYYY-MM-DD" no fuso de São Paulo (início do dia seguinte). */
+export function dayEndExclusiveInAppTimeZone(dateStr: string) {
+  return new Date(dayStartInAppTimeZone(dateStr).getTime() + 24 * 60 * 60 * 1000);
+}
+
 export function daysSince(value: Date | string) {
   const date = typeof value === "string" ? new Date(value) : value;
   const diffMs = Date.now() - date.getTime();

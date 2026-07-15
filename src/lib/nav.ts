@@ -7,6 +7,7 @@ import {
   Wrench,
   UserCog,
   Settings,
+  BarChart3,
 } from "lucide-react";
 
 export type NavItem = {
@@ -22,6 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/ordens", label: "Ordens de Serviço", icon: ClipboardList },
   { href: "/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/servicos", label: "Serviços", icon: Wrench, adminOnly: true },
   {
     href: "/configuracoes",
@@ -40,6 +42,7 @@ export const MOBILE_NAV_ITEMS: NavItem[] = [
 ];
 
 export const MORE_MENU_ITEMS: NavItem[] = [
+  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/servicos", label: "Serviços", icon: Wrench, adminOnly: true },
   { href: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];

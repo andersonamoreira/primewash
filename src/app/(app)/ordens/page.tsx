@@ -3,7 +3,12 @@ import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { WorkOrderStatusBadge } from "@/components/work-orders/status-badge";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDateTime,
+  dayStartInAppTimeZone,
+  dayEndExclusiveInAppTimeZone,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
@@ -17,12 +22,22 @@ const STATUS_FILTERS = [
 export default async function WorkOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; from?: string; to?: string }>;
 }) {
-  const { status } = await searchParams;
+  const { status, from, to } = await searchParams;
 
   const workOrders = await prisma.workOrder.findMany({
-    where: status ? { status: status as never } : undefined,
+    where: {
+      ...(status ? { status: status as never } : {}),
+      ...(from || to
+        ? {
+            scheduledAt: {
+              ...(from ? { gte: dayStartInAppTimeZone(from) } : {}),
+              ...(to ? { lt: dayEndExclusiveInAppTimeZone(to) } : {}),
+            },
+          }
+        : {}),
+    },
     orderBy: { scheduledAt: "desc" },
     include: {
       client: true,
@@ -46,10 +61,14 @@ export default async function WorkOrdersPage({
         </Button>
       </div>
 
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
         {STATUS_FILTERS.map((filter) => {
           const isActive = (filter.value ?? "") === (status ?? "");
-          const href = filter.value ? `/ordens?status=${filter.value}` : "/ordens";
+          const params = new URLSearchParams();
+          if (filter.value) params.set("status", filter.value);
+          if (from) params.set("from", from);
+          if (to) params.set("to", to);
+          const href = params.size > 0 ? `/ordens?${params.toString()}` : "/ordens";
           return (
             <Link
               key={filter.label}
@@ -66,6 +85,42 @@ export default async function WorkOrdersPage({
           );
         })}
       </div>
+
+      <form className="mb-5 flex flex-wrap items-end gap-3" action="/ordens">
+        {status && <input type="hidden" name="status" value={status} />}
+        <div className="flex flex-col gap-1">
+          <label htmlFor="from" className="text-xs font-medium text-muted-foreground">
+            De
+          </label>
+          <input
+            id="from"
+            type="date"
+            name="from"
+            defaultValue={from}
+            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="to" className="text-xs font-medium text-muted-foreground">
+            Até
+          </label>
+          <input
+            id="to"
+            type="date"
+            name="to"
+            defaultValue={to}
+            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground"
+          />
+        </div>
+        <Button type="submit" variant="secondary" size="sm">
+          Filtrar
+        </Button>
+        {(from || to) && (
+          <Button asChild type="button" variant="ghost" size="sm">
+            <Link href={status ? `/ordens?status=${status}` : "/ordens"}>Limpar datas</Link>
+          </Button>
+        )}
+      </form>
 
       {workOrders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border-strong p-10 text-center text-muted-foreground">
