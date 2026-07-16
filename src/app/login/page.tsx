@@ -28,6 +28,10 @@ export default function LoginPage() {
           <h2 className="mb-5 text-lg font-semibold text-foreground">Entrar no sistema</h2>
           <LoginForm />
         </div>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} Solvit Development. Todos os direitos reservados.
+        </p>
       </div>
     </div>
   );

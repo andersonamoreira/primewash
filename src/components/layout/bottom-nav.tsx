@@ -78,6 +78,10 @@ export function BottomNav({
             <LogOut className="size-4" /> Sair
           </button>
         </form>
+
+        <p className="mt-1 pb-1 text-center text-[11px] text-muted-foreground">
+          © {new Date().getFullYear()} Solvit Development
+        </p>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-center justify-around border-t border-border-subtle bg-surface/95 backdrop-blur-sm lg:hidden">

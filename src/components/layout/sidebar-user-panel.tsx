@@ -49,6 +49,9 @@ export function SidebarUserPanel({
           </Button>
         </form>
       </div>
+      <p className="mt-2 px-1 text-center text-[11px] text-muted-foreground">
+        © {new Date().getFullYear()} Solvit Development
+      </p>
     </div>
   );
 }

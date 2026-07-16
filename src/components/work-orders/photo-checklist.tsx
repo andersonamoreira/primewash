@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { Camera, Loader2, Trash2, X } from "lucide-react";
+import { Camera, Images, Loader2, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,24 +16,48 @@ type Photo = {
 
 export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; photos: Photo[] }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [lightbox, setLightbox] = useState<string | null>(null);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) setPreview(URL.createObjectURL(file));
-    else setPreview(null);
+  function handleFileChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+    otherInputRef: React.RefObject<HTMLInputElement | null>
+  ) {
+    const selected = e.target.files?.[0];
+    if (otherInputRef.current) otherInputRef.current.value = "";
+    if (selected) {
+      setFile(selected);
+      setPreview(URL.createObjectURL(selected));
+    } else {
+      setFile(null);
+      setPreview(null);
+    }
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+
+    if (!file) {
+      toast.error("Selecione uma foto (câmera ou galeria).");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("photo", file);
+    if (descriptionInputRef.current?.value) {
+      formData.append("description", descriptionInputRef.current.value);
+    }
 
     startTransition(async () => {
       try {
         await addDamagePhotoAction(workOrderId, formData);
         formRef.current?.reset();
+        setFile(null);
         setPreview(null);
         toast.success("Foto adicionada ao checklist.");
       } catch (err) {
@@ -55,24 +79,53 @@ export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; p
 
   return (
     <div>
-      <form ref={formRef} onSubmit={handleSubmit} className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <Input
-            type="file"
-            name="photo"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileChange}
-            required
-          />
+      <form ref={formRef} onSubmit={handleSubmit} className="mb-4 flex flex-col gap-3">
+        <input
+          ref={cameraInputRef}
+          type="file"
+          name="photo"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => handleFileChange(e, galleryInputRef)}
+          className="hidden"
+        />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          name="photo"
+          accept="image/*"
+          onChange={(e) => handleFileChange(e, cameraInputRef)}
+          className="hidden"
+        />
+
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            onClick={() => cameraInputRef.current?.click()}
+          >
+            <Camera className="size-4" /> Câmera
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            onClick={() => galleryInputRef.current?.click()}
+          >
+            <Images className="size-4" /> Galeria
+          </Button>
         </div>
-        <div className="flex-1">
-          <Input name="description" placeholder="Descrição da avaria (opcional)" />
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <Input ref={descriptionInputRef} name="description" placeholder="Descrição da avaria (opcional)" />
+          </div>
+          <Button type="submit" disabled={isPending} className="shrink-0">
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+            Adicionar
+          </Button>
         </div>
-        <Button type="submit" disabled={isPending} className="shrink-0">
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-          Adicionar
-        </Button>
       </form>
 
       {preview && (
