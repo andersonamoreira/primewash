@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, StickyNote, Printer } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/ui/delete-button";
@@ -22,7 +23,8 @@ export default async function WorkOrderDetailPage({
 }) {
   const { id } = await params;
 
-  const [workOrder, catalogServices] = await Promise.all([
+  const [session, workOrder, catalogServices] = await Promise.all([
+    auth(),
     prisma.workOrder.findUnique({
       where: { id },
       include: {
@@ -42,6 +44,8 @@ export default async function WorkOrderDetailPage({
   if (!workOrder) notFound();
 
   const canEdit = EDITABLE_STATUSES.has(workOrder.status);
+  const isAdmin = session?.user.role === "ADMIN";
+  const canReopen = isAdmin || Boolean(session?.user.canReopenWorkOrder);
   const subtotal = workOrder.services.reduce((sum, s) => sum + Number(s.price), 0);
   const discount = Number(workOrder.discount);
 
@@ -96,12 +100,14 @@ export default async function WorkOrderDetailPage({
               <Printer className="size-4" /> Imprimir
             </Link>
           </Button>
-          <StatusActions workOrderId={workOrder.id} status={workOrder.status} />
-          <DeleteButton
-            confirmMessage={`Excluir a OS #${workOrder.number}? Essa ação não pode ser desfeita.`}
-            action={deleteWorkOrderAction.bind(null, workOrder.id)}
-            redirectTo="/ordens"
-          />
+          <StatusActions workOrderId={workOrder.id} status={workOrder.status} canReopen={canReopen} />
+          {isAdmin && (
+            <DeleteButton
+              confirmMessage={`Excluir a OS #${workOrder.number}? Essa ação não pode ser desfeita.`}
+              action={deleteWorkOrderAction.bind(null, workOrder.id)}
+              redirectTo="/ordens"
+            />
+          )}
         </div>
       </div>
 

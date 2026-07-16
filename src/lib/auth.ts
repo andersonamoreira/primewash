@@ -28,6 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
+          canReopenWorkOrder: user.canReopenWorkOrder,
         };
       },
     }),

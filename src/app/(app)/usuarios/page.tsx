@@ -51,9 +51,14 @@ export default async function UsersPage() {
               </TableCell>
               <TableCell className="text-muted-foreground">{user.email}</TableCell>
               <TableCell>
-                <Badge variant={user.role === "ADMIN" ? "accent" : "secondary"}>
-                  {user.role === "ADMIN" ? "Administrador" : "Usuário comum"}
-                </Badge>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant={user.role === "ADMIN" ? "accent" : "secondary"}>
+                    {user.role === "ADMIN" ? "Administrador" : "Usuário comum"}
+                  </Badge>
+                  {user.role === "USER" && user.canReopenWorkOrder && (
+                    <Badge variant="secondary">Pode reabrir OS</Badge>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 <ToggleActiveSwitch userId={user.id} active={user.active} />

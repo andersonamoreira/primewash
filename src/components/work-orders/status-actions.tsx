@@ -1,12 +1,20 @@
 "use client";
 
 import { useTransition } from "react";
-import { Loader2, Play, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Play, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { updateWorkOrderStatusAction } from "@/lib/actions/work-orders";
+import { updateWorkOrderStatusAction, reopenWorkOrderAction } from "@/lib/actions/work-orders";
 
-export function StatusActions({ workOrderId, status }: { workOrderId: string; status: string }) {
+export function StatusActions({
+  workOrderId,
+  status,
+  canReopen = false,
+}: {
+  workOrderId: string;
+  status: string;
+  canReopen?: boolean;
+}) {
   const [isPending, startTransition] = useTransition();
 
   function updateStatus(next: string) {
@@ -20,7 +28,29 @@ export function StatusActions({ workOrderId, status }: { workOrderId: string; st
     });
   }
 
-  if (status === "CONCLUIDO" || status === "CANCELADO") return null;
+  function reopen() {
+    if (!window.confirm("Reabrir esta OS e voltar o status para \"Em andamento\"?")) return;
+    startTransition(async () => {
+      try {
+        await reopenWorkOrderAction(workOrderId);
+        toast.success("OS reaberta.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Não foi possível reabrir a OS.");
+      }
+    });
+  }
+
+  if (status === "CONCLUIDO") {
+    if (!canReopen) return null;
+    return (
+      <Button size="sm" variant="outline" disabled={isPending} onClick={reopen}>
+        {isPending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+        Reabrir OS
+      </Button>
+    );
+  }
+
+  if (status === "CANCELADO") return null;
 
   return (
     <div className="flex flex-wrap gap-2">

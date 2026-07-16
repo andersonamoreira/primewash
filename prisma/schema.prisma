@@ -47,6 +47,7 @@ model User {
   passwordHash String
   role         Role     @default(USER)
   active       Boolean  @default(true)
+  canReopenWorkOrder Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

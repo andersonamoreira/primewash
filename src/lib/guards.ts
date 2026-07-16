@@ -16,3 +16,19 @@ export async function requireUser() {
   }
   return session;
 }
+
+export async function requireDeletePermission() {
+  const session = await requireUser();
+  if (session.user.role !== "ADMIN") {
+    throw new Error("Apenas administradores podem excluir registros.");
+  }
+  return session;
+}
+
+export async function requireReopenPermission() {
+  const session = await requireUser();
+  if (session.user.role !== "ADMIN" && !session.user.canReopenWorkOrder) {
+    throw new Error("Você não tem permissão para reabrir OS concluídas.");
+  }
+  return session;
+}

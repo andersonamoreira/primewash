@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/guards";
+import { requireUser, requireDeletePermission, requireReopenPermission } from "@/lib/guards";
 import {
   createWorkOrderSchema,
   updateWorkOrderDetailsSchema,
@@ -306,7 +306,7 @@ export async function deleteDamagePhotoAction(photoId: string, workOrderId: stri
 }
 
 export async function deleteWorkOrderAction(workOrderId: string) {
-  await requireUser();
+  await requireDeletePermission();
 
   const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId } });
   if (workOrder?.googleEventId) {
@@ -315,4 +315,22 @@ export async function deleteWorkOrderAction(workOrderId: string) {
 
   await prisma.workOrder.delete({ where: { id: workOrderId } });
   revalidatePath("/ordens");
+}
+
+export async function reopenWorkOrderAction(workOrderId: string) {
+  await requireReopenPermission();
+
+  const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId } });
+  if (!workOrder || workOrder.status !== "CONCLUIDO") {
+    throw new Error("Apenas OS concluídas podem ser reabertas.");
+  }
+
+  await prisma.workOrder.update({
+    where: { id: workOrderId },
+    data: { status: "EM_ANDAMENTO", finishedAt: null },
+  });
+
+  revalidatePath(`/ordens/${workOrderId}`);
+  revalidatePath("/ordens");
+  revalidatePath("/agenda");
 }

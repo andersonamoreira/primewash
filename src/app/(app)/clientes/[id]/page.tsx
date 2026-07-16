@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Phone, Mail, FileText, MapPin, Megaphone, StickyNote, Bike, ClipboardList } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,21 +27,26 @@ export default async function ClientDetailPage({
 }) {
   const { id } = await params;
 
-  const client = await prisma.client.findUnique({
-    where: { id },
-    include: {
-      motorcycles: { orderBy: { createdAt: "asc" } },
-      workOrders: {
-        orderBy: { scheduledAt: "desc" },
-        include: {
-          motorcycle: true,
-          services: { include: { service: true } },
+  const [session, client] = await Promise.all([
+    auth(),
+    prisma.client.findUnique({
+      where: { id },
+      include: {
+        motorcycles: { orderBy: { createdAt: "asc" } },
+        workOrders: {
+          orderBy: { scheduledAt: "desc" },
+          include: {
+            motorcycle: true,
+            services: { include: { service: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   if (!client) notFound();
+
+  const isAdmin = session?.user.role === "ADMIN";
 
   const lastCompleted = client.workOrders.find((wo) => wo.status === "CONCLUIDO");
   const daysSinceLast = lastCompleted
@@ -100,12 +106,14 @@ export default async function ClientDetailPage({
               notes: client.notes,
             }}
           />
-          <DeleteButton
-            label="Excluir"
-            confirmMessage="Excluir este cliente e todas as motos vinculadas? Essa ação não pode ser desfeita."
-            action={deleteClientAction.bind(null, client.id)}
-            redirectTo="/clientes"
-          />
+          {isAdmin && (
+            <DeleteButton
+              label="Excluir"
+              confirmMessage="Excluir este cliente e todas as motos vinculadas? Essa ação não pode ser desfeita."
+              action={deleteClientAction.bind(null, client.id)}
+              redirectTo="/clientes"
+            />
+          )}
         </div>
       </div>
 
@@ -179,10 +187,12 @@ export default async function ClientDetailPage({
                 </div>
                 <div className="flex items-center gap-1">
                   <MotorcycleDialog clientId={client.id} mode="edit" motorcycle={moto} />
-                  <DeleteButton
-                    confirmMessage={`Excluir a moto ${moto.brand} ${moto.model} (${moto.plate})?`}
-                    action={deleteMotorcycleAction.bind(null, moto.id, client.id)}
-                  />
+                  {isAdmin && (
+                    <DeleteButton
+                      confirmMessage={`Excluir a moto ${moto.brand} ${moto.model} (${moto.plate})?`}
+                      action={deleteMotorcycleAction.bind(null, moto.id, client.id)}
+                    />
+                  )}
                 </div>
               </div>
             ))}

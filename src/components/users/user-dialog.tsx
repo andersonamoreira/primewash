@@ -15,7 +15,13 @@ import { createUserAction, updateUserAction } from "@/lib/actions/users";
 
 type UserDialogProps = {
   mode: "create" | "edit";
-  user?: { id: string; name: string; email: string; role: string };
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    canReopenWorkOrder: boolean;
+  };
 };
 
 export function UserDialog({ mode, user }: UserDialogProps) {

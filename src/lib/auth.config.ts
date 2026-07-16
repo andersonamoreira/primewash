@@ -35,6 +35,7 @@ export const authConfig: NextAuthConfig = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.canReopenWorkOrder = user.canReopenWorkOrder;
       }
       return token;
     },
@@ -42,6 +43,7 @@ export const authConfig: NextAuthConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as "ADMIN" | "USER";
+        session.user.canReopenWorkOrder = token.canReopenWorkOrder as boolean;
       }
       return session;
     },

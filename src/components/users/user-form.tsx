@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectTrigger,
@@ -21,7 +22,12 @@ const ROLE_LABELS: Record<string, string> = {
 
 type UserFormProps = {
   action: (prevState: string | undefined, formData: FormData) => Promise<string | undefined>;
-  defaultValues?: { name?: string; email?: string; role?: string };
+  defaultValues?: {
+    name?: string;
+    email?: string;
+    role?: string;
+    canReopenWorkOrder?: boolean;
+  };
   isEdit?: boolean;
   submitLabel?: string;
   onSuccess?: () => void;
@@ -36,6 +42,7 @@ export function UserForm({
 }: UserFormProps) {
   const [error, formAction, isPending] = useActionState(action, undefined);
   const wasPending = useRef(false);
+  const [role, setRole] = useState(defaultValues?.role ?? "USER");
 
   useEffect(() => {
     if (wasPending.current && !isPending && !error) {
@@ -69,19 +76,39 @@ export function UserForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="role">Perfil de acesso *</Label>
-        <Select name="role" defaultValue={defaultValues?.role ?? "USER"}>
+        <Select name="role" value={role} onValueChange={setRole}>
           <SelectTrigger id="role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ROLES.map((role) => (
-              <SelectItem key={role} value={role}>
-                {ROLE_LABELS[role]}
+            {ROLES.map((r) => (
+              <SelectItem key={r} value={r}>
+                {ROLE_LABELS[r]}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <p className="text-xs text-muted-foreground">
+          Usuário comum não pode excluir registros; pode editar OS não iniciada/em andamento e
+          cadastro de clientes.
+        </p>
       </div>
+
+      {role === "USER" && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-raised px-3 py-2.5">
+          <div>
+            <Label htmlFor="canReopenWorkOrder">Pode reabrir OS concluídas</Label>
+            <p className="text-xs text-muted-foreground">
+              Administradores sempre podem reabrir; aqui você libera isso para este usuário comum.
+            </p>
+          </div>
+          <Switch
+            id="canReopenWorkOrder"
+            name="canReopenWorkOrder"
+            defaultChecked={defaultValues?.canReopenWorkOrder}
+          />
+        </div>
+      )}
 
       {error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 

@@ -18,6 +18,7 @@ export async function createUserAction(_prevState: string | undefined, formData:
     email: formData.get("email"),
     password: formData.get("password"),
     role: formData.get("role"),
+    canReopenWorkOrder: formData.get("canReopenWorkOrder"),
   });
 
   if (!parsed.success) return firstIssue(parsed.error);
@@ -32,6 +33,7 @@ export async function createUserAction(_prevState: string | undefined, formData:
       name: parsed.data.name,
       email: parsed.data.email,
       role: parsed.data.role,
+      canReopenWorkOrder: parsed.data.canReopenWorkOrder,
       passwordHash,
     },
   });
@@ -51,6 +53,7 @@ export async function updateUserAction(
     email: formData.get("email"),
     role: formData.get("role"),
     password: formData.get("password"),
+    canReopenWorkOrder: formData.get("canReopenWorkOrder"),
   });
 
   if (!parsed.success) return firstIssue(parsed.error);
@@ -65,6 +68,7 @@ export async function updateUserAction(
       name: parsed.data.name,
       email: parsed.data.email,
       role: parsed.data.role,
+      canReopenWorkOrder: parsed.data.canReopenWorkOrder,
       ...(passwordHash ? { passwordHash } : {}),
     },
   });
