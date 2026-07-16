@@ -53,39 +53,41 @@ const SERVICES: {
 ];
 
 async function main() {
-  const groupIds = new Map<string, string>();
-  for (const [index, name] of GROUPS.entries()) {
-    const group = await prisma.serviceGroup.upsert({
-      where: { name },
-      update: { sortOrder: index },
-      create: { name, sortOrder: index },
-    });
-    groupIds.set(name, group.id);
-  }
+  // O catálogo inicial só é criado uma vez (banco vazio). Depois disso, o usuário
+  // é dono do catálogo — se ele excluir um serviço, o seed não deve recriá-lo a
+  // cada deploy/restart do container.
+  const hasAnyService = (await prisma.service.count()) > 0;
 
-  for (const [index, service] of SERVICES.entries()) {
-    const created = await prisma.service.upsert({
-      where: { name: service.name },
-      update: {
-        description: service.description,
-        sortOrder: index,
-        groupId: groupIds.get(service.group),
-      },
-      create: {
-        name: service.name,
-        description: service.description,
-        sortOrder: index,
-        groupId: groupIds.get(service.group),
-      },
-    });
-
-    for (const tier of Object.keys(service.prices) as CylinderTier[]) {
-      await prisma.servicePrice.upsert({
-        where: { serviceId_tier: { serviceId: created.id, tier } },
-        update: { price: service.prices[tier] },
-        create: { serviceId: created.id, tier, price: service.prices[tier] },
+  if (!hasAnyService) {
+    const groupIds = new Map<string, string>();
+    for (const [index, name] of GROUPS.entries()) {
+      const group = await prisma.serviceGroup.upsert({
+        where: { name },
+        update: { sortOrder: index },
+        create: { name, sortOrder: index },
       });
+      groupIds.set(name, group.id);
     }
+
+    for (const [index, service] of SERVICES.entries()) {
+      const created = await prisma.service.create({
+        data: {
+          name: service.name,
+          description: service.description,
+          sortOrder: index,
+          groupId: groupIds.get(service.group),
+        },
+      });
+
+      for (const tier of Object.keys(service.prices) as CylinderTier[]) {
+        await prisma.servicePrice.create({
+          data: { serviceId: created.id, tier, price: service.prices[tier] },
+        });
+      }
+    }
+    console.log("Catálogo de serviços inicial criado.");
+  } else {
+    console.log("Catálogo de serviços já existe — seed de serviços ignorado.");
   }
 
   const adminEmail = "admin@primewash.com.br";

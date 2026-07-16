@@ -87,7 +87,7 @@ export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; p
           accept="image/*"
           capture="environment"
           onChange={(e) => handleFileChange(e, galleryInputRef)}
-          className="hidden"
+          className="sr-only"
         />
         <input
           ref={galleryInputRef}
@@ -95,7 +95,7 @@ export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; p
           name="photo"
           accept="image/*"
           onChange={(e) => handleFileChange(e, cameraInputRef)}
-          className="hidden"
+          className="sr-only"
         />
 
         <div className="flex gap-2">
