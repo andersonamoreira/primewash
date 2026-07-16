@@ -142,13 +142,17 @@ export default async function PrintWorkOrderPage({
           </p>
           <div className="grid grid-cols-4 gap-2">
             {workOrder.photos.map((photo) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={photo.id}
-                src={`/api/files/${photo.photoPath}`}
-                alt={photo.description ?? "Foto da avaria"}
-                className="aspect-square w-full rounded border border-gray-200 object-cover"
-              />
+              <div key={photo.id} className="break-inside-avoid">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/files/${photo.photoPath}`}
+                  alt={photo.description ?? "Foto da avaria"}
+                  className="aspect-square w-full rounded border border-gray-200 object-cover"
+                />
+                {photo.description && (
+                  <p className="mt-1 text-[10px] leading-tight text-gray-600">{photo.description}</p>
+                )}
+              </div>
             ))}
           </div>
         </div>
