@@ -213,7 +213,7 @@ export async function updateWorkOrderDetailsAction(workOrderId: string, input: u
 
 type WorkOrderForCalendar = {
   client: { name: string; phone: string };
-  motorcycle: { brand: string; model: string; plate: string };
+  motorcycle: { brand: string; model: string; plate: string | null };
   services: { service: { name: string } | null; customName: string | null }[];
   totalAmount: unknown;
   discount: unknown;
@@ -225,7 +225,9 @@ function buildCalendarDescription(workOrder: WorkOrderForCalendar) {
   const discount = Number(workOrder.discount ?? 0);
   const lines = [
     `Cliente: ${workOrder.client.name} (${workOrder.client.phone})`,
-    `Moto: ${workOrder.motorcycle.brand} ${workOrder.motorcycle.model} - ${workOrder.motorcycle.plate}`,
+    `Moto: ${workOrder.motorcycle.brand} ${workOrder.motorcycle.model}${
+      workOrder.motorcycle.plate ? ` - ${workOrder.motorcycle.plate}` : ""
+    }`,
     `Serviços: ${
       workOrder.services.map((s) => s.service?.name ?? s.customName).join(", ") || "—"
     }`,

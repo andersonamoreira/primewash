@@ -176,9 +176,11 @@ export default async function ClientDetailPage({
                     <span className="text-muted-foreground">· {moto.color}</span>
                   </p>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="rounded bg-surface-raised px-1.5 py-0.5 font-mono tracking-wide">
-                      {moto.plate}
-                    </span>
+                    {moto.plate && (
+                      <span className="rounded bg-surface-raised px-1.5 py-0.5 font-mono tracking-wide">
+                        {moto.plate}
+                      </span>
+                    )}
                     <Badge variant="secondary">{CYLINDER_TIER_LABELS[moto.cylinderTier]}</Badge>
                   </div>
                   {moto.notes && (
@@ -189,7 +191,7 @@ export default async function ClientDetailPage({
                   <MotorcycleDialog clientId={client.id} mode="edit" motorcycle={moto} />
                   {isAdmin && (
                     <DeleteButton
-                      confirmMessage={`Excluir a moto ${moto.brand} ${moto.model} (${moto.plate})?`}
+                      confirmMessage={`Excluir a moto ${moto.brand} ${moto.model}${moto.plate ? ` (${moto.plate})` : ""}?`}
                       action={deleteMotorcycleAction.bind(null, moto.id, client.id)}
                     />
                   )}

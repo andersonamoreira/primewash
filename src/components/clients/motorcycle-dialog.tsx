@@ -21,7 +21,7 @@ type MotorcycleDialogProps = {
     brand: string;
     model: string;
     color: string;
-    plate: string;
+    plate: string | null;
     cylinderTier: string;
     notes: string | null;
   };

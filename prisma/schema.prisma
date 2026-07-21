@@ -83,7 +83,7 @@ model Motorcycle {
   brand           String
   model           String
   color           String
-  plate           String
+  plate           String?
   cylinderTier    CylinderTier @default(MEDIA)
   notes           String?
   createdAt       DateTime     @default(now())

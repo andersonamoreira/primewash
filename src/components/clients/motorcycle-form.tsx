@@ -24,7 +24,7 @@ type MotorcycleFormProps = {
     brand?: string;
     model?: string;
     color?: string;
-    plate?: string;
+    plate?: string | null;
     cylinderTier?: string;
     notes?: string | null;
   };
@@ -101,14 +101,13 @@ export function MotorcycleForm({
           <Input id="color" name="color" defaultValue={defaultValues?.color} placeholder="Preta" required />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="plate">Placa *</Label>
+          <Label htmlFor="plate">Placa</Label>
           <Input
             id="plate"
             name="plate"
-            defaultValue={defaultValues?.plate}
+            defaultValue={defaultValues?.plate ?? ""}
             placeholder="ABC1D23"
             className="uppercase"
-            required
           />
         </div>
       </div>

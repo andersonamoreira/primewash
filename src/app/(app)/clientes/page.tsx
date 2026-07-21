@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search, Bike, Phone } from "lucide-react";
+import { Plus, Search, Bike, Phone, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +12,21 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { daysSince, relativeDaysLabel } from "@/lib/format";
+
+const SORT_KEYS = ["name", "motos", "lastVisit"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
 
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; dir?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, sort, dir } = await searchParams;
+
+  const sortKey: SortKey = SORT_KEYS.includes(sort as SortKey) ? (sort as SortKey) : "name";
+  const sortDir: "asc" | "desc" = dir === "desc" ? "desc" : "asc";
 
   const clients = await prisma.client.findMany({
     where: q
@@ -40,6 +47,50 @@ export default async function ClientsPage({
       },
     },
   });
+
+  const sortedClients = [...clients].sort((a, b) => {
+    let cmp = 0;
+    if (sortKey === "name") {
+      cmp = a.name.localeCompare(b.name, "pt-BR");
+    } else if (sortKey === "motos") {
+      cmp = a._count.motorcycles - b._count.motorcycles;
+    } else {
+      const aTime = a.workOrders[0]?.scheduledAt.getTime() ?? 0;
+      const bTime = b.workOrders[0]?.scheduledAt.getTime() ?? 0;
+      cmp = aTime - bTime;
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  function sortHref(key: SortKey) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    params.set("sort", key);
+    params.set("dir", sortKey === key && sortDir === "asc" ? "desc" : "asc");
+    return `/clientes?${params.toString()}`;
+  }
+
+  function SortIcon({ column }: { column: SortKey }) {
+    if (sortKey !== column) return <ArrowUpDown className="size-3.5 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
+  }
+
+  function SortableHead({ column, children }: { column: SortKey; children: React.ReactNode }) {
+    return (
+      <TableHead>
+        <Link
+          href={sortHref(column)}
+          className={cn(
+            "flex items-center gap-1 transition-colors hover:text-foreground",
+            sortKey === column && "text-foreground"
+          )}
+        >
+          {children}
+          <SortIcon column={column} />
+        </Link>
+      </TableHead>
+    );
+  }
 
   return (
     <div>
@@ -72,14 +123,14 @@ export default async function ClientsPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
+                  <SortableHead column="name">Nome</SortableHead>
                   <TableHead>Telefone</TableHead>
-                  <TableHead>Motos</TableHead>
-                  <TableHead>Última visita</TableHead>
+                  <SortableHead column="motos">Motos</SortableHead>
+                  <SortableHead column="lastVisit">Última visita</SortableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clients.map((client) => {
+                {sortedClients.map((client) => {
                   const lastVisit = client.workOrders[0]?.scheduledAt;
                   return (
                     <TableRow key={client.id} className="cursor-pointer">
@@ -105,7 +156,7 @@ export default async function ClientsPage({
           </div>
 
           <div className="flex flex-col gap-3 sm:hidden">
-            {clients.map((client) => {
+            {sortedClients.map((client) => {
               const lastVisit = client.workOrders[0]?.scheduledAt;
               return (
                 <Link

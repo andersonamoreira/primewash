@@ -68,7 +68,8 @@ export default async function PrintWorkOrderPage({
             {workOrder.motorcycle.brand} {workOrder.motorcycle.model} · {workOrder.motorcycle.color}
           </p>
           <p className="text-sm text-gray-600">
-            {workOrder.motorcycle.plate} · {CYLINDER_TIER_LABELS[workOrder.motorcycle.cylinderTier]}
+            {workOrder.motorcycle.plate ? `${workOrder.motorcycle.plate} · ` : ""}
+            {CYLINDER_TIER_LABELS[workOrder.motorcycle.cylinderTier]}
           </p>
         </div>
         <div>

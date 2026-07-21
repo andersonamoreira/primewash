@@ -40,7 +40,7 @@ type ClientWithMotos = {
   id: string;
   name: string;
   phone: string;
-  motorcycles: { id: string; brand: string; model: string; plate: string; cylinderTier: string }[];
+  motorcycles: { id: string; brand: string; model: string; plate: string | null; cylinderTier: string }[];
 };
 
 export function WorkOrderForm({
@@ -254,7 +254,8 @@ export function WorkOrderForm({
                     )}
                   >
                     <span>
-                      {moto.brand} {moto.model} · {moto.plate}
+                      {moto.brand} {moto.model}
+                      {moto.plate ? ` · ${moto.plate}` : ""}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {CYLINDER_TIER_LABELS[moto.cylinderTier]}
@@ -443,13 +444,12 @@ function NewMotoFields({
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="newMotoPlate">Placa *</Label>
+        <Label htmlFor="newMotoPlate">Placa</Label>
         <Input
           id="newMotoPlate"
           value={value.plate}
           onChange={(e) => onChange({ ...value, plate: e.target.value.toUpperCase() })}
           className="uppercase"
-          required
         />
       </div>
       <div className="col-span-2 flex flex-col gap-1.5">

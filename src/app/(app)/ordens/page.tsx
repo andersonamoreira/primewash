@@ -139,7 +139,8 @@ export default async function WorkOrdersPage({
                   OS #{wo.number} · {wo.client.name}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {wo.motorcycle.brand} {wo.motorcycle.model} ({wo.motorcycle.plate}) ·{" "}
+                  {wo.motorcycle.brand} {wo.motorcycle.model}
+                  {wo.motorcycle.plate ? ` (${wo.motorcycle.plate})` : ""} ·{" "}
                   {wo.services.map((s) => (s.service?.name ?? s.customName)).join(", ") || "Sem serviços"}
                 </p>
                 <p className="text-xs text-muted-foreground">{formatDateTime(wo.scheduledAt)}</p>

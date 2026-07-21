@@ -132,7 +132,8 @@ export default async function WorkOrderDetailPage({
               {workOrder.motorcycle.brand} {workOrder.motorcycle.model} · {workOrder.motorcycle.color}
             </p>
             <p className="text-sm text-muted-foreground">
-              {workOrder.motorcycle.plate} · {CYLINDER_TIER_LABELS[workOrder.motorcycle.cylinderTier]}
+              {workOrder.motorcycle.plate ? `${workOrder.motorcycle.plate} · ` : ""}
+              {CYLINDER_TIER_LABELS[workOrder.motorcycle.cylinderTier]}
             </p>
           </CardContent>
         </Card>

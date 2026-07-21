@@ -49,8 +49,9 @@ export const motorcycleSchema = z.object({
   plate: z
     .string()
     .trim()
-    .min(6, "Informe a placa")
-    .transform((v) => v.toUpperCase()),
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v.toUpperCase() : undefined)),
   cylinderTier: z.enum(CYLINDER_TIERS),
   notes: optionalText,
 });
