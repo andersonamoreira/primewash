@@ -56,7 +56,7 @@ export async function getDashboardData(reference: Date = new Date()) {
     count: hourCounts.get(hour) ?? 0,
   })).filter((h) => h.count > 0 || (h.hour >= 7 && h.hour <= 19));
 
-  const paymentTotals = { DEBITO: 0, CREDITO: 0, PIX: 0 };
+  const paymentTotals = { DEBITO: 0, CREDITO: 0, PIX: 0, DINHEIRO: 0 };
   for (const wo of completedOrders) {
     if (wo.paymentMethod) {
       paymentTotals[wo.paymentMethod] += Number(wo.totalAmount);

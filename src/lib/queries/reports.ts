@@ -14,7 +14,7 @@ export async function getSalesReport({ gte, lt }: DateRange) {
   const revenue = completed.reduce((sum, wo) => sum + Number(wo.totalAmount), 0);
   const totalDiscount = completed.reduce((sum, wo) => sum + Number(wo.discount), 0);
 
-  const paymentTotals = { DEBITO: 0, CREDITO: 0, PIX: 0 };
+  const paymentTotals = { DEBITO: 0, CREDITO: 0, PIX: 0, DINHEIRO: 0 };
   for (const wo of completed) {
     if (wo.paymentMethod) paymentTotals[wo.paymentMethod] += Number(wo.totalAmount);
   }

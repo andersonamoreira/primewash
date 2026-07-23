@@ -22,8 +22,8 @@ export function StatusActions({
       try {
         await updateWorkOrderStatusAction(workOrderId, next);
         toast.success("Status atualizado.");
-      } catch {
-        toast.error("Não foi possível atualizar o status.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o status.");
       }
     });
   }

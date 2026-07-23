@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, StickyNote, Printer } from "lucide-react";
+import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, CheckCircle2, StickyNote, Printer } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,6 +70,11 @@ export default async function WorkOrderDetailPage({
           {workOrder.estimatedDeliveryAt && (
             <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
               <PackageCheck className="size-3.5" /> Previsão de entrega: {formatDateTime(workOrder.estimatedDeliveryAt)}
+            </p>
+          )}
+          {workOrder.status === "CONCLUIDO" && workOrder.finishedAt && (
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CheckCircle2 className="size-3.5" /> Concluída em: {formatDateTime(workOrder.finishedAt)}
             </p>
           )}
         </div>

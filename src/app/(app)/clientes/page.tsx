@@ -41,9 +41,10 @@ export default async function ClientsPage({
     include: {
       _count: { select: { motorcycles: true } },
       workOrders: {
-        orderBy: { scheduledAt: "desc" },
+        where: { status: "CONCLUIDO" },
+        orderBy: { finishedAt: "desc" },
         take: 1,
-        select: { scheduledAt: true, status: true },
+        select: { finishedAt: true },
       },
     },
   });
@@ -55,8 +56,8 @@ export default async function ClientsPage({
     } else if (sortKey === "motos") {
       cmp = a._count.motorcycles - b._count.motorcycles;
     } else {
-      const aTime = a.workOrders[0]?.scheduledAt.getTime() ?? 0;
-      const bTime = b.workOrders[0]?.scheduledAt.getTime() ?? 0;
+      const aTime = a.workOrders[0]?.finishedAt?.getTime() ?? 0;
+      const bTime = b.workOrders[0]?.finishedAt?.getTime() ?? 0;
       cmp = aTime - bTime;
     }
     return sortDir === "asc" ? cmp : -cmp;
@@ -131,7 +132,7 @@ export default async function ClientsPage({
               </TableHeader>
               <TableBody>
                 {sortedClients.map((client) => {
-                  const lastVisit = client.workOrders[0]?.scheduledAt;
+                  const lastVisit = client.workOrders[0]?.finishedAt;
                   return (
                     <TableRow key={client.id} className="cursor-pointer">
                       <TableCell>
@@ -157,7 +158,7 @@ export default async function ClientsPage({
 
           <div className="flex flex-col gap-3 sm:hidden">
             {sortedClients.map((client) => {
-              const lastVisit = client.workOrders[0]?.scheduledAt;
+              const lastVisit = client.workOrders[0]?.finishedAt;
               return (
                 <Link
                   key={client.id}

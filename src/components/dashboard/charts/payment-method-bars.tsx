@@ -4,12 +4,13 @@ const METHODS = [
   { key: "DEBITO" as const, label: "Cartão de Débito", color: "#1670b0" },
   { key: "CREDITO" as const, label: "Cartão de Crédito", color: "#b8842e" },
   { key: "PIX" as const, label: "Pix", color: "#1f9c5a" },
+  { key: "DINHEIRO" as const, label: "Dinheiro", color: "#6b7280" },
 ];
 
 export function PaymentMethodBars({
   totals,
 }: {
-  totals: Record<"DEBITO" | "CREDITO" | "PIX", number>;
+  totals: Record<"DEBITO" | "CREDITO" | "PIX" | "DINHEIRO", number>;
 }) {
   const max = Math.max(...METHODS.map((m) => totals[m.key]), 1);
   const grandTotal = METHODS.reduce((sum, m) => sum + totals[m.key], 0);

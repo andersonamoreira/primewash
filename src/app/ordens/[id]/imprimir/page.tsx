@@ -53,6 +53,9 @@ export default async function PrintWorkOrderPage({
         <div className="text-right">
           <p className="text-xl font-bold">OS #{workOrder.number}</p>
           <p className="text-sm text-gray-500">{WORK_ORDER_STATUS_LABELS[workOrder.status]}</p>
+          {workOrder.status === "CONCLUIDO" && workOrder.finishedAt && (
+            <p className="text-xs text-gray-400">Concluída em {formatDateTime(workOrder.finishedAt)}</p>
+          )}
         </div>
       </header>
 

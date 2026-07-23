@@ -186,6 +186,7 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   DEBITO: "Cartão de Débito",
   CREDITO: "Cartão de Crédito",
   PIX: "Pix",
+  DINHEIRO: "Dinheiro",
 };
 
 export const WORK_ORDER_STATUS_LABELS: Record<string, string> = {

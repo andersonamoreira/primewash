@@ -323,6 +323,7 @@ export function WorkOrderForm({
                 <SelectItem value="DEBITO">{PAYMENT_METHOD_LABELS.DEBITO}</SelectItem>
                 <SelectItem value="CREDITO">{PAYMENT_METHOD_LABELS.CREDITO}</SelectItem>
                 <SelectItem value="PIX">{PAYMENT_METHOD_LABELS.PIX}</SelectItem>
+                <SelectItem value="DINHEIRO">{PAYMENT_METHOD_LABELS.DINHEIRO}</SelectItem>
               </SelectContent>
             </Select>
           </div>

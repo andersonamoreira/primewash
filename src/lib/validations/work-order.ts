@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CYLINDER_TIERS } from "@/lib/validations/client";
 
-export const PAYMENT_METHODS = ["DEBITO", "CREDITO", "PIX"] as const;
+export const PAYMENT_METHODS = ["DEBITO", "CREDITO", "PIX", "DINHEIRO"] as const;
 
 const optionalText = z
   .string()
@@ -36,7 +36,7 @@ export const createWorkOrderSchema = z.object({
       brand: z.string().trim().min(2, "Informe a marca"),
       model: z.string().trim().min(1, "Informe o modelo"),
       color: z.string().trim().min(2, "Informe a cor"),
-      plate: z.string().trim().min(6, "Informe a placa"),
+      plate: optionalText.transform((v) => v?.toUpperCase()),
       cylinderTier: z.enum(CYLINDER_TIERS),
       notes: optionalText,
     })

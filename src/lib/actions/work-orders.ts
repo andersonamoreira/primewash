@@ -242,6 +242,19 @@ function buildCalendarDescription(workOrder: WorkOrderForCalendar) {
 export async function updateWorkOrderStatusAction(workOrderId: string, status: string) {
   await requireUser();
 
+  if (status === "CONCLUIDO") {
+    const existing = await prisma.workOrder.findUnique({
+      where: { id: workOrderId },
+      select: { client: { select: { city: true, state: true } } },
+    });
+    if (!existing) throw new Error("Ordem de serviço não encontrada.");
+    if (!existing.client.city || !existing.client.state) {
+      throw new Error(
+        "Para concluir a OS, preencha Cidade e UF no cadastro do cliente."
+      );
+    }
+  }
+
   const data: { status: "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO"; startedAt?: Date; finishedAt?: Date } = {
     status: status as "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO",
   };
