@@ -126,6 +126,25 @@ export function WorkOrderForm({
     e.preventDefault();
     setError(undefined);
 
+    if (clientMode === "existing" && !clientId) {
+      setError("Selecione um cliente ou cadastre um novo.");
+      return;
+    }
+    if (clientMode === "new" && (!newClientName.trim() || !newClientPhone.trim())) {
+      setError("Informe o nome e o telefone do novo cliente.");
+      return;
+    }
+    if (clientMode === "existing" && motorcycleMode === "existing" && selectedClient && selectedClient.motorcycles.length > 0 && !motorcycleId) {
+      setError("Selecione uma moto ou cadastre uma nova.");
+      return;
+    }
+    if (
+      (clientMode === "new" || motorcycleMode === "new" || !selectedClient || selectedClient.motorcycles.length === 0) &&
+      (!newMoto.brand.trim() || !newMoto.model.trim() || !newMoto.color.trim())
+    ) {
+      setError("Informe marca, modelo e cor da moto.");
+      return;
+    }
     if (serviceIds.length === 0 && customLines.length === 0) {
       setError("Selecione ao menos um serviço.");
       return;

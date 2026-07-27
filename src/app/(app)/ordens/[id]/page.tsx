@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, CheckCircle2, StickyNote, Printer } from "lucide-react";
+import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, CheckCircle2, XCircle, StickyNote, Printer } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +12,12 @@ import { WorkOrderEditDialog } from "@/components/work-orders/work-order-edit-di
 import { PaymentMethodEditor } from "@/components/work-orders/payment-method-editor";
 import { PhotoChecklist } from "@/components/work-orders/photo-checklist";
 import { deleteWorkOrderAction } from "@/lib/actions/work-orders";
-import { CYLINDER_TIER_LABELS, formatCurrency, formatDateTime } from "@/lib/format";
+import {
+  CYLINDER_TIER_LABELS,
+  CANCELLATION_REASON_LABELS,
+  formatCurrency,
+  formatDateTime,
+} from "@/lib/format";
 
 const EDITABLE_STATUSES = new Set(["AGENDADO", "EM_ANDAMENTO"]);
 
@@ -75,6 +80,12 @@ export default async function WorkOrderDetailPage({
           {workOrder.status === "CONCLUIDO" && workOrder.finishedAt && (
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
               <CheckCircle2 className="size-3.5" /> Concluída em: {formatDateTime(workOrder.finishedAt)}
+            </p>
+          )}
+          {workOrder.status === "CANCELADO" && workOrder.cancellationReason && (
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <XCircle className="size-3.5" /> Motivo do cancelamento:{" "}
+              {CANCELLATION_REASON_LABELS[workOrder.cancellationReason]}
             </p>
           )}
         </div>

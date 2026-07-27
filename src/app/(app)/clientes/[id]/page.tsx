@@ -64,7 +64,10 @@ export default async function ClientDetailPage({
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{client.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground">{client.name}</h1>
+            <span className="text-sm font-medium text-muted-foreground">#{client.number}</span>
+          </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Phone className="size-3.5" /> {client.phone}

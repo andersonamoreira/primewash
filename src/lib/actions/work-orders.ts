@@ -11,7 +11,12 @@ import {
 } from "@/lib/validations/work-order";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/uploads";
 import { upsertWorkOrderCalendarEvent, deleteWorkOrderCalendarEvent } from "@/lib/google-calendar";
-import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDateTime,
+  PAYMENT_METHOD_LABELS,
+  CANCELLATION_REASONS,
+} from "@/lib/format";
 import type { CylinderTier, Prisma } from "@prisma/client";
 
 type TxClient = Prisma.TransactionClient;
@@ -75,6 +80,14 @@ export async function createWorkOrderAction(input: unknown) {
   const workOrder = await prisma.$transaction(async (tx) => {
     let clientId = data.clientId;
     if (!clientId && data.newClient) {
+      const normalizedPhone = data.newClient.phone.replace(/\D/g, "");
+      const existingClients = await tx.client.findMany({ select: { id: true, name: true, phone: true } });
+      const duplicate = existingClients.find((c) => c.phone.replace(/\D/g, "") === normalizedPhone);
+      if (duplicate) {
+        throw new Error(
+          `Já existe um cliente cadastrado com esse telefone: ${duplicate.name}. Selecione-o em "Cliente existente".`
+        );
+      }
       const client = await tx.client.create({
         data: { name: data.newClient.name, phone: data.newClient.phone },
       });
@@ -239,7 +252,11 @@ function buildCalendarDescription(workOrder: WorkOrderForCalendar) {
   return lines.join("\n");
 }
 
-export async function updateWorkOrderStatusAction(workOrderId: string, status: string) {
+export async function updateWorkOrderStatusAction(
+  workOrderId: string,
+  status: string,
+  cancellationReason?: string
+) {
   await requireUser();
 
   if (status === "CONCLUIDO") {
@@ -255,12 +272,24 @@ export async function updateWorkOrderStatusAction(workOrderId: string, status: s
     }
   }
 
-  const data: { status: "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO"; startedAt?: Date; finishedAt?: Date } = {
+  if (status === "CANCELADO" && !CANCELLATION_REASONS.includes(cancellationReason as never)) {
+    throw new Error("Selecione o motivo do cancelamento.");
+  }
+
+  const data: {
+    status: "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
+    startedAt?: Date;
+    finishedAt?: Date;
+    cancellationReason?: (typeof CANCELLATION_REASONS)[number];
+  } = {
     status: status as "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO",
   };
 
   if (status === "EM_ANDAMENTO") data.startedAt = new Date();
   if (status === "CONCLUIDO") data.finishedAt = new Date();
+  if (status === "CANCELADO") {
+    data.cancellationReason = cancellationReason as (typeof CANCELLATION_REASONS)[number];
+  }
 
   const workOrder = await prisma.workOrder.update({ where: { id: workOrderId }, data });
 

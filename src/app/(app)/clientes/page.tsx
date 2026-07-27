@@ -124,6 +124,7 @@ export default async function ClientsPage({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Código</TableHead>
                   <SortableHead column="name">Nome</SortableHead>
                   <TableHead>Telefone</TableHead>
                   <SortableHead column="motos">Motos</SortableHead>
@@ -135,6 +136,7 @@ export default async function ClientsPage({
                   const lastVisit = client.workOrders[0]?.finishedAt;
                   return (
                     <TableRow key={client.id} className="cursor-pointer">
+                      <TableCell className="text-muted-foreground">#{client.number}</TableCell>
                       <TableCell>
                         <Link href={`/clientes/${client.id}`} className="font-medium text-foreground hover:text-primary">
                           {client.name}
@@ -166,7 +168,9 @@ export default async function ClientsPage({
                   className="rounded-lg border border-border-subtle bg-surface p-4"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">{client.name}</span>
+                    <span className="font-medium text-foreground">
+                      <span className="text-muted-foreground">#{client.number}</span> {client.name}
+                    </span>
                     <Badge variant="secondary">
                       <Bike className="size-3" /> {client._count.motorcycles}
                     </Badge>

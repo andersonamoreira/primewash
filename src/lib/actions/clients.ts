@@ -10,6 +10,30 @@ function firstIssue(error: { issues: { message: string }[] }) {
   return error.issues[0]?.message ?? "Dados inválidos.";
 }
 
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+async function findDuplicateClient(
+  phone: string,
+  document: string | undefined,
+  excludeId?: string
+) {
+  const normalizedPhone = onlyDigits(phone);
+  const normalizedDocument = document ? onlyDigits(document) : undefined;
+
+  const candidates = await prisma.client.findMany({
+    where: excludeId ? { id: { not: excludeId } } : undefined,
+    select: { id: true, name: true, phone: true, document: true },
+  });
+
+  return candidates.find(
+    (c) =>
+      onlyDigits(c.phone) === normalizedPhone ||
+      (normalizedDocument && c.document && onlyDigits(c.document) === normalizedDocument)
+  );
+}
+
 export async function createClientAction(_prevState: string | undefined, formData: FormData) {
   const parsed = clientSchema.safeParse({
     name: formData.get("name"),
@@ -23,6 +47,11 @@ export async function createClientAction(_prevState: string | undefined, formDat
   });
 
   if (!parsed.success) return firstIssue(parsed.error);
+
+  const duplicate = await findDuplicateClient(parsed.data.phone, parsed.data.document);
+  if (duplicate) {
+    return `Já existe um cliente cadastrado com esse telefone ou CPF: ${duplicate.name}.`;
+  }
 
   const client = await prisma.client.create({ data: parsed.data });
 
@@ -47,6 +76,11 @@ export async function updateClientAction(
   });
 
   if (!parsed.success) return firstIssue(parsed.error);
+
+  const duplicate = await findDuplicateClient(parsed.data.phone, parsed.data.document, clientId);
+  if (duplicate) {
+    return `Já existe um cliente cadastrado com esse telefone ou CPF: ${duplicate.name}.`;
+  }
 
   await prisma.client.update({ where: { id: clientId }, data: parsed.data });
 

@@ -34,6 +34,14 @@ enum PaymentMethod {
   DINHEIRO
 }
 
+enum CancellationReason {
+  DESISTIU
+  VALOR
+  IMPREVISTO
+  CHUVA
+  OUTRO
+}
+
 enum ReferralSource {
   INSTAGRAM
   INDICACAO
@@ -59,6 +67,7 @@ model User {
 
 model Client {
   id             String          @id @default(cuid())
+  number         Int             @unique @default(autoincrement())
   name           String
   phone          String
   email          String?
@@ -153,6 +162,7 @@ model WorkOrder {
   totalAmount   Decimal         @default(0) @db.Decimal(10, 2)
   discount      Decimal         @default(0) @db.Decimal(10, 2)
   notes         String?
+  cancellationReason CancellationReason?
   googleEventId String?
   createdById   String?
   createdAt     DateTime        @default(now())

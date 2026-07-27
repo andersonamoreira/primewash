@@ -196,6 +196,16 @@ export const WORK_ORDER_STATUS_LABELS: Record<string, string> = {
   CANCELADO: "Cancelado",
 };
 
+export const CANCELLATION_REASONS = ["DESISTIU", "VALOR", "IMPREVISTO", "CHUVA", "OUTRO"] as const;
+
+export const CANCELLATION_REASON_LABELS: Record<string, string> = {
+  DESISTIU: "Desistiu",
+  VALOR: "Valor",
+  IMPREVISTO: "Imprevisto",
+  CHUVA: "Chuva",
+  OUTRO: "Outro",
+};
+
 export const REFERRAL_SOURCE_LABELS: Record<string, string> = {
   INSTAGRAM: "Instagram",
   INDICACAO: "Indicação",

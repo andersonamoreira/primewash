@@ -7,6 +7,7 @@ import {
   CYLINDER_TIER_LABELS,
   PAYMENT_METHOD_LABELS,
   WORK_ORDER_STATUS_LABELS,
+  CANCELLATION_REASON_LABELS,
   formatCurrency,
   formatDateTime,
 } from "@/lib/format";
@@ -55,6 +56,11 @@ export default async function PrintWorkOrderPage({
           <p className="text-sm text-gray-500">{WORK_ORDER_STATUS_LABELS[workOrder.status]}</p>
           {workOrder.status === "CONCLUIDO" && workOrder.finishedAt && (
             <p className="text-xs text-gray-400">Concluída em {formatDateTime(workOrder.finishedAt)}</p>
+          )}
+          {workOrder.status === "CANCELADO" && workOrder.cancellationReason && (
+            <p className="text-xs text-gray-400">
+              Motivo: {CANCELLATION_REASON_LABELS[workOrder.cancellationReason]}
+            </p>
           )}
         </div>
       </header>
