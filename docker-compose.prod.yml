@@ -1,6 +1,8 @@
 networks:
   dec-db-shared:
     external: true
+  dec-web-shared:
+    external: true
 
 services:
   app:
@@ -20,6 +22,7 @@ services:
       - uploads:/app/data/uploads
     networks:
       - dec-db-shared
+      - dec-web-shared
 
 volumes:
   uploads:
