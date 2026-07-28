@@ -169,7 +169,8 @@ export default async function PrintWorkOrderPage({
       )}
 
       <footer className="mt-10 border-t border-gray-200 pt-4 text-center text-xs text-gray-400">
-        Prime Wash Estética de Motos · Documento gerado em {formatDateTime(new Date())}
+        <p>Prime Wash Estética de Motos · Documento gerado em {formatDateTime(new Date())}</p>
+        <p className="mt-1">📍 R. Demócrito Silva, 802 - Guaranhuns, Vila Velha - ES, 29103-720</p>
       </footer>
     </div>
   );
