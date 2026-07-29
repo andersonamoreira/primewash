@@ -16,8 +16,6 @@ services:
       GOOGLE_CLIENT_EMAIL: ${GOOGLE_CLIENT_EMAIL:-}
       GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY:-}
       GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-primewashmoto@gmail.com}
-    ports:
-      - "${APP_PORT:-3001}:3000"
     volumes:
       - uploads:/app/data/uploads
     networks:
