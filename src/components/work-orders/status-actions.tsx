@@ -35,12 +35,12 @@ export function StatusActions({
 
   function updateStatus(next: string) {
     startTransition(async () => {
-      try {
-        await updateWorkOrderStatusAction(workOrderId, next);
-        toast.success("Status atualizado.");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o status.");
+      const result = await updateWorkOrderStatusAction(workOrderId, next);
+      if (result && "error" in result) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("Status atualizado.");
     });
   }
 
@@ -50,26 +50,26 @@ export function StatusActions({
       return;
     }
     startTransition(async () => {
-      try {
-        await updateWorkOrderStatusAction(workOrderId, "CANCELADO", cancellationReason);
-        toast.success("OS cancelada.");
-        setCancelOpen(false);
-        setCancellationReason("");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Não foi possível cancelar a OS.");
+      const result = await updateWorkOrderStatusAction(workOrderId, "CANCELADO", cancellationReason);
+      if (result && "error" in result) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("OS cancelada.");
+      setCancelOpen(false);
+      setCancellationReason("");
     });
   }
 
   function reopen() {
     if (!window.confirm("Reabrir esta OS e voltar o status para \"Em andamento\"?")) return;
     startTransition(async () => {
-      try {
-        await reopenWorkOrderAction(workOrderId);
-        toast.success("OS reaberta.");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Não foi possível reabrir a OS.");
+      const result = await reopenWorkOrderAction(workOrderId);
+      if (result && "error" in result) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("OS reaberta.");
     });
   }
 

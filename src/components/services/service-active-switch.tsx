@@ -14,10 +14,9 @@ export function ServiceActiveSwitch({ serviceId, active }: { serviceId: string; 
       disabled={isPending}
       onCheckedChange={(checked) => {
         startTransition(async () => {
-          try {
-            await toggleServiceActiveAction(serviceId, checked);
-          } catch {
-            toast.error("Não foi possível atualizar.");
+          const result = await toggleServiceActiveAction(serviceId, checked);
+          if (result && "error" in result) {
+            toast.error(result.error);
           }
         });
       }}

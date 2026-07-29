@@ -33,12 +33,12 @@ export function DeleteButton({
       onClick={() => {
         if (typeof window !== "undefined" && !window.confirm(confirmMessage)) return;
         startTransition(async () => {
-          try {
-            await action();
-            if (redirectTo) router.push(redirectTo);
-          } catch {
-            toast.error("Não foi possível excluir.");
+          const result = await action();
+          if (result && typeof result === "object" && "error" in result) {
+            toast.error(String((result as { error: unknown }).error));
+            return;
           }
+          if (redirectTo) router.push(redirectTo);
         });
       }}
     >

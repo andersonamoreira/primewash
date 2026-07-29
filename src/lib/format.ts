@@ -17,6 +17,13 @@ export function formatLongDate(value: Date) {
   return formatted.replace(/\p{L}+/gu, (word) => word[0].toUpperCase() + word.slice(1));
 }
 
+/** Converte um valor numérico digitado pelo usuário para number, aceitando vírgula
+ * como separador decimal (comum em teclados numéricos de celular em pt-BR). */
+export function parseDecimalInput(value: string): number {
+  if (!value) return NaN;
+  return Number(value.replace(",", "."));
+}
+
 export function formatCurrency(value: number | string) {
   const num = typeof value === "string" ? Number(value) : value;
   return new Intl.NumberFormat("pt-BR", {
@@ -195,6 +202,8 @@ export const WORK_ORDER_STATUS_LABELS: Record<string, string> = {
   CONCLUIDO: "Concluído",
   CANCELADO: "Cancelado",
 };
+
+export const MAX_DAMAGE_PHOTOS = 8;
 
 export const CANCELLATION_REASONS = ["DESISTIU", "VALOR", "IMPREVISTO", "CHUVA", "OUTRO"] as const;
 

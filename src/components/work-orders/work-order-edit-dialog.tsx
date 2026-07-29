@@ -22,7 +22,12 @@ import {
   type CustomLine,
 } from "@/components/work-orders/service-line-editor";
 import { updateWorkOrderDetailsAction } from "@/lib/actions/work-orders";
-import { formatCurrency, toDateTimeLocalValue, fromDateTimeLocalValue } from "@/lib/format";
+import {
+  formatCurrency,
+  toDateTimeLocalValue,
+  fromDateTimeLocalValue,
+  parseDecimalInput,
+} from "@/lib/format";
 
 type ExistingLine = { serviceId: string | null; customName: string | null; price: string };
 
@@ -73,11 +78,11 @@ export function WorkOrderEditDialog({
         const price = s.prices.find((p) => p.tier === cylinderTier)?.price;
         return sum + (price ? Number(price) : 0);
       }, 0);
-    const customTotal = customLines.reduce((sum, l) => sum + (Number(l.price) || 0), 0);
+    const customTotal = customLines.reduce((sum, l) => sum + (parseDecimalInput(l.price) || 0), 0);
     return catalogTotal + customTotal;
   }, [services, serviceIds, cylinderTier, customLines]);
 
-  const clampedDiscount = Math.min(Number(discountValue) || 0, subtotal);
+  const clampedDiscount = Math.min(parseDecimalInput(discountValue) || 0, subtotal);
   const total = subtotal - clampedDiscount;
 
   function toggleService(id: string) {
@@ -101,7 +106,7 @@ export function WorkOrderEditDialog({
       setError("Selecione ao menos um serviço.");
       return;
     }
-    if (customLines.some((l) => !l.name.trim() || !(Number(l.price) > 0))) {
+    if (customLines.some((l) => !l.name.trim() || !(parseDecimalInput(l.price) > 0))) {
       setError("Preencha nome e valor de todos os serviços avulsos.");
       return;
     }
@@ -111,23 +116,22 @@ export function WorkOrderEditDialog({
       estimatedDeliveryAt: fromDateTimeLocalValue(estimatedDeliveryAtValue),
       services: [
         ...serviceIds.map((serviceId) => ({ kind: "catalog" as const, serviceId })),
-        ...customLines.map((l) => ({ kind: "custom" as const, name: l.name, price: Number(l.price) })),
+        ...customLines.map((l) => ({ kind: "custom" as const, name: l.name, price: parseDecimalInput(l.price) })),
       ],
       discount: clampedDiscount,
       notes: notesValue,
     };
 
     startTransition(async () => {
-      try {
-        await updateWorkOrderDetailsAction(workOrderId, payload);
-        toast.success("Ordem de serviço atualizada.");
-        setOpen(false);
-        router.refresh();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Não foi possível atualizar a OS.";
-        setError(message);
-        toast.error(message);
+      const result = await updateWorkOrderDetailsAction(workOrderId, payload);
+      if (result && "error" in result) {
+        setError(result.error);
+        toast.error(result.error);
+        return;
       }
+      toast.success("Ordem de serviço atualizada.");
+      setOpen(false);
+      router.refresh();
     });
   }
 

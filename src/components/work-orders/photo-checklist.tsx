@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { addDamagePhotoAction, deleteDamagePhotoAction } from "@/lib/actions/work-orders";
+import { MAX_DAMAGE_PHOTOS } from "@/lib/format";
 
 type Photo = {
   id: string;
@@ -14,7 +15,15 @@ type Photo = {
   description: string | null;
 };
 
-export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; photos: Photo[] }) {
+export function PhotoChecklist({
+  workOrderId,
+  photos,
+  readOnly = false,
+}: {
+  workOrderId: string;
+  photos: Photo[];
+  readOnly?: boolean;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -23,6 +32,8 @@ export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; p
   const [preview, setPreview] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [lightbox, setLightbox] = useState<string | null>(null);
+
+  const atLimit = photos.length >= MAX_DAMAGE_PHOTOS;
 
   function handleFileChange(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -42,6 +53,10 @@ export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; p
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    if (atLimit) {
+      toast.error(`O checklist permite no máximo ${MAX_DAMAGE_PHOTOS} fotos.`);
+      return;
+    }
     if (!file) {
       toast.error("Selecione uma foto (câmera ou galeria).");
       return;
@@ -54,79 +69,92 @@ export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; p
     }
 
     startTransition(async () => {
-      try {
-        await addDamagePhotoAction(workOrderId, formData);
-        formRef.current?.reset();
-        setFile(null);
-        setPreview(null);
-        toast.success("Foto adicionada ao checklist.");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Não foi possível enviar a foto.");
+      const result = await addDamagePhotoAction(workOrderId, formData);
+      if (result && "error" in result) {
+        toast.error(result.error);
+        return;
       }
+      formRef.current?.reset();
+      setFile(null);
+      setPreview(null);
+      toast.success("Foto adicionada ao checklist.");
     });
   }
 
   function handleDelete(photoId: string) {
     if (!window.confirm("Remover esta foto do checklist?")) return;
     startTransition(async () => {
-      try {
-        await deleteDamagePhotoAction(photoId, workOrderId);
-      } catch {
-        toast.error("Não foi possível remover a foto.");
+      const result = await deleteDamagePhotoAction(photoId, workOrderId);
+      if (result && "error" in result) {
+        toast.error(result.error);
       }
     });
   }
 
   return (
     <div>
-      <form ref={formRef} onSubmit={handleSubmit} className="mb-4 flex flex-col gap-3">
-        <input
-          ref={cameraInputRef}
-          type="file"
-          name="photo"
-          accept="image/*"
-          capture="environment"
-          onChange={(e) => handleFileChange(e, galleryInputRef)}
-          className="sr-only"
-        />
-        <input
-          ref={galleryInputRef}
-          type="file"
-          name="photo"
-          accept="image/*"
-          onChange={(e) => handleFileChange(e, cameraInputRef)}
-          className="sr-only"
-        />
+      {!readOnly && (
+        <form ref={formRef} onSubmit={handleSubmit} className="mb-4 flex flex-col gap-3">
+          <input
+            ref={cameraInputRef}
+            type="file"
+            name="photo"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => handleFileChange(e, galleryInputRef)}
+            className="sr-only"
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            name="photo"
+            accept="image/*"
+            onChange={(e) => handleFileChange(e, cameraInputRef)}
+            className="sr-only"
+          />
 
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="flex-1"
-            onClick={() => cameraInputRef.current?.click()}
-          >
-            <Camera className="size-4" /> Câmera
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="flex-1"
-            onClick={() => galleryInputRef.current?.click()}
-          >
-            <Images className="size-4" /> Galeria
-          </Button>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <Input ref={descriptionInputRef} name="description" placeholder="Descrição da avaria (opcional)" />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              disabled={atLimit}
+              onClick={() => cameraInputRef.current?.click()}
+            >
+              <Camera className="size-4" /> Câmera
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              disabled={atLimit}
+              onClick={() => galleryInputRef.current?.click()}
+            >
+              <Images className="size-4" /> Galeria
+            </Button>
           </div>
-          <Button type="submit" disabled={isPending} className="shrink-0">
-            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-            Adicionar
-          </Button>
-        </div>
-      </form>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <Input
+                ref={descriptionInputRef}
+                name="description"
+                placeholder="Descrição da avaria (opcional)"
+                disabled={atLimit}
+              />
+            </div>
+            <Button type="submit" disabled={isPending || atLimit} className="shrink-0">
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+              Adicionar
+            </Button>
+          </div>
+        </form>
+      )}
+
+      <p className="mb-3 text-xs text-muted-foreground">
+        {photos.length}/{MAX_DAMAGE_PHOTOS} fotos
+        {atLimit && !readOnly && " · limite atingido"}
+      </p>
 
       {preview && (
         <div className="mb-4 flex items-center gap-3">
@@ -161,13 +189,15 @@ export function PhotoChecklist({ workOrderId, photos }: { workOrderId: string; p
               {photo.description && (
                 <p className="truncate bg-black/60 px-1.5 py-1 text-[11px] text-white">{photo.description}</p>
               )}
-              <button
-                type="button"
-                onClick={() => handleDelete(photo.id)}
-                className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(photo.id)}
+                  className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>

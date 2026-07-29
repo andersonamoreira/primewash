@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/guards";
+import { runAction } from "@/lib/action-result";
 import { createUserSchema, updateUserSchema } from "@/lib/validations/user";
 
 function firstIssue(error: { issues: { message: string }[] }) {
@@ -77,11 +78,13 @@ export async function updateUserAction(
 }
 
 export async function toggleUserActiveAction(userId: string, active: boolean) {
-  const session = await requireAdmin();
-  if (session.user.id === userId && !active) {
-    throw new Error("Você não pode desativar seu próprio usuário.");
-  }
+  return runAction(async () => {
+    const session = await requireAdmin();
+    if (session.user.id === userId && !active) {
+      throw new Error("Você não pode desativar seu próprio usuário.");
+    }
 
-  await prisma.user.update({ where: { id: userId }, data: { active } });
-  revalidatePath("/usuarios");
+    await prisma.user.update({ where: { id: userId }, data: { active } });
+    revalidatePath("/usuarios");
+  });
 }

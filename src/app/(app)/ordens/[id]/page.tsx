@@ -188,7 +188,11 @@ export default async function WorkOrderDetailPage({
           </div>
           <div className="mt-4">
             <p className="mb-1.5 text-xs text-muted-foreground">Forma de pagamento</p>
-            <PaymentMethodEditor workOrderId={workOrder.id} paymentMethod={workOrder.paymentMethod} />
+            <PaymentMethodEditor
+              workOrderId={workOrder.id}
+              paymentMethod={workOrder.paymentMethod}
+              disabled={!canEdit}
+            />
           </div>
         </CardContent>
       </Card>
@@ -205,7 +209,7 @@ export default async function WorkOrderDetailPage({
         <h2 className="mb-3 text-lg font-semibold text-foreground">Checklist de avarias</h2>
         <Card>
           <CardContent>
-            <PhotoChecklist workOrderId={workOrder.id} photos={workOrder.photos} />
+            <PhotoChecklist workOrderId={workOrder.id} photos={workOrder.photos} readOnly={!canEdit} />
           </CardContent>
         </Card>
       </section>

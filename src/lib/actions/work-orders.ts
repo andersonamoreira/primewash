@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser, requireDeletePermission, requireReopenPermission } from "@/lib/guards";
+import { runAction } from "@/lib/action-result";
 import {
   createWorkOrderSchema,
   updateWorkOrderDetailsSchema,
@@ -16,6 +17,7 @@ import {
   formatDateTime,
   PAYMENT_METHOD_LABELS,
   CANCELLATION_REASONS,
+  MAX_DAMAGE_PHOTOS,
 } from "@/lib/format";
 import type { CylinderTier, Prisma } from "@prisma/client";
 
@@ -61,167 +63,171 @@ async function resolveServiceLines(
 }
 
 export async function createWorkOrderAction(input: unknown) {
-  const session = await requireUser();
-  const parsed = createWorkOrderSchema.safeParse(input);
+  return runAction(async () => {
+    const session = await requireUser();
+    const parsed = createWorkOrderSchema.safeParse(input);
 
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
-  }
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+    }
 
-  const data = parsed.data;
+    const data = parsed.data;
 
-  if (!data.clientId && !data.newClient) {
-    throw new Error("Selecione um cliente existente ou cadastre um novo.");
-  }
-  if (!data.motorcycleId && !data.newMotorcycle) {
-    throw new Error("Selecione uma moto existente ou cadastre uma nova.");
-  }
+    if (!data.clientId && !data.newClient) {
+      throw new Error("Selecione um cliente existente ou cadastre um novo.");
+    }
+    if (!data.motorcycleId && !data.newMotorcycle) {
+      throw new Error("Selecione uma moto existente ou cadastre uma nova.");
+    }
 
-  const workOrder = await prisma.$transaction(async (tx) => {
-    let clientId = data.clientId;
-    if (!clientId && data.newClient) {
-      const normalizedPhone = data.newClient.phone.replace(/\D/g, "");
-      const existingClients = await tx.client.findMany({ select: { id: true, name: true, phone: true } });
-      const duplicate = existingClients.find((c) => c.phone.replace(/\D/g, "") === normalizedPhone);
-      if (duplicate) {
-        throw new Error(
-          `Já existe um cliente cadastrado com esse telefone: ${duplicate.name}. Selecione-o em "Cliente existente".`
-        );
+    const workOrder = await prisma.$transaction(async (tx) => {
+      let clientId = data.clientId;
+      if (!clientId && data.newClient) {
+        const normalizedPhone = data.newClient.phone.replace(/\D/g, "");
+        const existingClients = await tx.client.findMany({ select: { id: true, name: true, phone: true } });
+        const duplicate = existingClients.find((c) => c.phone.replace(/\D/g, "") === normalizedPhone);
+        if (duplicate) {
+          throw new Error(
+            `Já existe um cliente cadastrado com esse telefone: ${duplicate.name}. Selecione-o em "Cliente existente".`
+          );
+        }
+        const client = await tx.client.create({
+          data: { name: data.newClient.name, phone: data.newClient.phone },
+        });
+        clientId = client.id;
       }
-      const client = await tx.client.create({
-        data: { name: data.newClient.name, phone: data.newClient.phone },
+      if (!clientId) throw new Error("Cliente inválido.");
+
+      let motorcycleId = data.motorcycleId;
+      let cylinderTier: CylinderTier;
+
+      if (!motorcycleId && data.newMotorcycle) {
+        const moto = await tx.motorcycle.create({
+          data: { ...data.newMotorcycle, clientId },
+        });
+        motorcycleId = moto.id;
+        cylinderTier = moto.cylinderTier;
+      } else if (motorcycleId) {
+        const moto = await tx.motorcycle.findUnique({ where: { id: motorcycleId } });
+        if (!moto) throw new Error("Moto não encontrada.");
+        cylinderTier = moto.cylinderTier;
+      } else {
+        throw new Error("Moto inválida.");
+      }
+
+      const { resolved, subtotal } = await resolveServiceLines(tx, data.services, cylinderTier);
+
+      const discount = data.discount ?? 0;
+      if (discount > subtotal) {
+        throw new Error("Desconto não pode ser maior que o subtotal dos serviços.");
+      }
+
+      return tx.workOrder.create({
+        data: {
+          clientId,
+          motorcycleId,
+          scheduledAt: new Date(data.scheduledAt),
+          estimatedDeliveryAt: new Date(data.estimatedDeliveryAt),
+          paymentMethod: data.paymentMethod,
+          notes: data.notes,
+          discount,
+          totalAmount: subtotal - discount,
+          createdById: session.user.id,
+          services: { create: resolved },
+        },
+        include: {
+          client: true,
+          motorcycle: true,
+          services: { include: { service: true } },
+        },
       });
-      clientId = client.id;
-    }
-    if (!clientId) throw new Error("Cliente inválido.");
-
-    let motorcycleId = data.motorcycleId;
-    let cylinderTier: CylinderTier;
-
-    if (!motorcycleId && data.newMotorcycle) {
-      const moto = await tx.motorcycle.create({
-        data: { ...data.newMotorcycle, clientId },
-      });
-      motorcycleId = moto.id;
-      cylinderTier = moto.cylinderTier;
-    } else if (motorcycleId) {
-      const moto = await tx.motorcycle.findUnique({ where: { id: motorcycleId } });
-      if (!moto) throw new Error("Moto não encontrada.");
-      cylinderTier = moto.cylinderTier;
-    } else {
-      throw new Error("Moto inválida.");
-    }
-
-    const { resolved, subtotal } = await resolveServiceLines(tx, data.services, cylinderTier);
-
-    const discount = data.discount ?? 0;
-    if (discount > subtotal) {
-      throw new Error("Desconto não pode ser maior que o subtotal dos serviços.");
-    }
-
-    return tx.workOrder.create({
-      data: {
-        clientId,
-        motorcycleId,
-        scheduledAt: new Date(data.scheduledAt),
-        estimatedDeliveryAt: new Date(data.estimatedDeliveryAt),
-        paymentMethod: data.paymentMethod,
-        notes: data.notes,
-        discount,
-        totalAmount: subtotal - discount,
-        createdById: session.user.id,
-        services: { create: resolved },
-      },
-      include: {
-        client: true,
-        motorcycle: true,
-        services: { include: { service: true } },
-      },
     });
+
+    revalidatePath("/ordens");
+    revalidatePath("/clientes");
+
+    const googleEventId = await upsertWorkOrderCalendarEvent({
+      summary: `OS #${workOrder.number} · ${workOrder.client.name} · ${workOrder.motorcycle.brand} ${workOrder.motorcycle.model}`,
+      description: buildCalendarDescription(workOrder),
+      start: workOrder.scheduledAt,
+      durationMinutes: 120,
+    });
+
+    if (googleEventId) {
+      await prisma.workOrder.update({ where: { id: workOrder.id }, data: { googleEventId } });
+    }
+
+    return { id: workOrder.id };
   });
-
-  revalidatePath("/ordens");
-  revalidatePath("/clientes");
-
-  const googleEventId = await upsertWorkOrderCalendarEvent({
-    summary: `OS #${workOrder.number} · ${workOrder.client.name} · ${workOrder.motorcycle.brand} ${workOrder.motorcycle.model}`,
-    description: buildCalendarDescription(workOrder),
-    start: workOrder.scheduledAt,
-    durationMinutes: 120,
-  });
-
-  if (googleEventId) {
-    await prisma.workOrder.update({ where: { id: workOrder.id }, data: { googleEventId } });
-  }
-
-  return { id: workOrder.id };
 }
 
 export async function updateWorkOrderDetailsAction(workOrderId: string, input: unknown) {
-  await requireUser();
+  return runAction(async () => {
+    await requireUser();
 
-  const parsed = updateWorkOrderDetailsSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
-  }
-  const data = parsed.data;
+    const parsed = updateWorkOrderDetailsSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+    }
+    const data = parsed.data;
 
-  const existing = await prisma.workOrder.findUnique({
-    where: { id: workOrderId },
-    include: { motorcycle: true },
-  });
-  if (!existing) throw new Error("Ordem de serviço não encontrada.");
-  if (!EDITABLE_STATUSES.has(existing.status)) {
-    throw new Error("Só é possível editar uma OS agendada ou em andamento.");
-  }
-
-  const workOrder = await prisma.$transaction(async (tx) => {
-    const { resolved, subtotal } = await resolveServiceLines(
-      tx,
-      data.services,
-      existing.motorcycle.cylinderTier
-    );
-
-    const discount = data.discount ?? 0;
-    if (discount > subtotal) {
-      throw new Error("Desconto não pode ser maior que o subtotal dos serviços.");
+    const existing = await prisma.workOrder.findUnique({
+      where: { id: workOrderId },
+      include: { motorcycle: true },
+    });
+    if (!existing) throw new Error("Ordem de serviço não encontrada.");
+    if (!EDITABLE_STATUSES.has(existing.status)) {
+      throw new Error("Só é possível editar uma OS agendada ou em andamento.");
     }
 
-    await tx.workOrderService.deleteMany({ where: { workOrderId } });
+    const workOrder = await prisma.$transaction(async (tx) => {
+      const { resolved, subtotal } = await resolveServiceLines(
+        tx,
+        data.services,
+        existing.motorcycle.cylinderTier
+      );
 
-    return tx.workOrder.update({
-      where: { id: workOrderId },
-      data: {
-        scheduledAt: new Date(data.scheduledAt),
-        estimatedDeliveryAt: new Date(data.estimatedDeliveryAt),
-        discount,
-        totalAmount: subtotal - discount,
-        notes: data.notes,
-        services: { create: resolved },
-      },
-      include: {
-        client: true,
-        motorcycle: true,
-        services: { include: { service: true } },
-      },
+      const discount = data.discount ?? 0;
+      if (discount > subtotal) {
+        throw new Error("Desconto não pode ser maior que o subtotal dos serviços.");
+      }
+
+      await tx.workOrderService.deleteMany({ where: { workOrderId } });
+
+      return tx.workOrder.update({
+        where: { id: workOrderId },
+        data: {
+          scheduledAt: new Date(data.scheduledAt),
+          estimatedDeliveryAt: new Date(data.estimatedDeliveryAt),
+          discount,
+          totalAmount: subtotal - discount,
+          notes: data.notes,
+          services: { create: resolved },
+        },
+        include: {
+          client: true,
+          motorcycle: true,
+          services: { include: { service: true } },
+        },
+      });
     });
+
+    const googleEventId = await upsertWorkOrderCalendarEvent({
+      googleEventId: workOrder.googleEventId,
+      summary: `OS #${workOrder.number} · ${workOrder.client.name} · ${workOrder.motorcycle.brand} ${workOrder.motorcycle.model}`,
+      description: buildCalendarDescription(workOrder),
+      start: workOrder.scheduledAt,
+      durationMinutes: 120,
+    });
+
+    if (googleEventId && googleEventId !== workOrder.googleEventId) {
+      await prisma.workOrder.update({ where: { id: workOrderId }, data: { googleEventId } });
+    }
+
+    revalidatePath(`/ordens/${workOrderId}`);
+    revalidatePath("/ordens");
+    revalidatePath("/agenda");
   });
-
-  const googleEventId = await upsertWorkOrderCalendarEvent({
-    googleEventId: workOrder.googleEventId,
-    summary: `OS #${workOrder.number} · ${workOrder.client.name} · ${workOrder.motorcycle.brand} ${workOrder.motorcycle.model}`,
-    description: buildCalendarDescription(workOrder),
-    start: workOrder.scheduledAt,
-    durationMinutes: 120,
-  });
-
-  if (googleEventId && googleEventId !== workOrder.googleEventId) {
-    await prisma.workOrder.update({ where: { id: workOrderId }, data: { googleEventId } });
-  }
-
-  revalidatePath(`/ordens/${workOrderId}`);
-  revalidatePath("/ordens");
-  revalidatePath("/agenda");
 }
 
 type WorkOrderForCalendar = {
@@ -257,124 +263,161 @@ export async function updateWorkOrderStatusAction(
   status: string,
   cancellationReason?: string
 ) {
-  await requireUser();
+  return runAction(async () => {
+    await requireUser();
 
-  if (status === "CONCLUIDO") {
-    const existing = await prisma.workOrder.findUnique({
-      where: { id: workOrderId },
-      select: { client: { select: { city: true, state: true } } },
-    });
-    if (!existing) throw new Error("Ordem de serviço não encontrada.");
-    if (!existing.client.city || !existing.client.state) {
-      throw new Error(
-        "Para concluir a OS, preencha Cidade e UF no cadastro do cliente."
-      );
+    if (status === "CONCLUIDO") {
+      const existing = await prisma.workOrder.findUnique({
+        where: { id: workOrderId },
+        select: { paymentMethod: true, client: { select: { city: true, state: true } } },
+      });
+      if (!existing) throw new Error("Ordem de serviço não encontrada.");
+      if (!existing.client.city || !existing.client.state) {
+        throw new Error("Para concluir a OS, preencha Cidade e UF no cadastro do cliente.");
+      }
+      if (!existing.paymentMethod) {
+        throw new Error("Para concluir a OS, informe a forma de pagamento.");
+      }
     }
-  }
 
-  if (status === "CANCELADO" && !CANCELLATION_REASONS.includes(cancellationReason as never)) {
-    throw new Error("Selecione o motivo do cancelamento.");
-  }
+    if (status === "CANCELADO" && !CANCELLATION_REASONS.includes(cancellationReason as never)) {
+      throw new Error("Selecione o motivo do cancelamento.");
+    }
 
-  const data: {
-    status: "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
-    startedAt?: Date;
-    finishedAt?: Date;
-    cancellationReason?: (typeof CANCELLATION_REASONS)[number];
-  } = {
-    status: status as "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO",
-  };
+    const data: {
+      status: "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
+      startedAt?: Date;
+      finishedAt?: Date;
+      cancellationReason?: (typeof CANCELLATION_REASONS)[number];
+    } = {
+      status: status as "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO",
+    };
 
-  if (status === "EM_ANDAMENTO") data.startedAt = new Date();
-  if (status === "CONCLUIDO") data.finishedAt = new Date();
-  if (status === "CANCELADO") {
-    data.cancellationReason = cancellationReason as (typeof CANCELLATION_REASONS)[number];
-  }
+    if (status === "EM_ANDAMENTO") data.startedAt = new Date();
+    if (status === "CONCLUIDO") data.finishedAt = new Date();
+    if (status === "CANCELADO") {
+      data.cancellationReason = cancellationReason as (typeof CANCELLATION_REASONS)[number];
+    }
 
-  const workOrder = await prisma.workOrder.update({ where: { id: workOrderId }, data });
+    const workOrder = await prisma.workOrder.update({ where: { id: workOrderId }, data });
 
-  if (status === "CANCELADO" && workOrder.googleEventId) {
-    await deleteWorkOrderCalendarEvent(workOrder.googleEventId);
-    await prisma.workOrder.update({ where: { id: workOrderId }, data: { googleEventId: null } });
-  }
+    if (status === "CANCELADO" && workOrder.googleEventId) {
+      await deleteWorkOrderCalendarEvent(workOrder.googleEventId);
+      await prisma.workOrder.update({ where: { id: workOrderId }, data: { googleEventId: null } });
+    }
 
-  revalidatePath(`/ordens/${workOrderId}`);
-  revalidatePath("/ordens");
-  revalidatePath("/agenda");
+    revalidatePath(`/ordens/${workOrderId}`);
+    revalidatePath("/ordens");
+    revalidatePath("/agenda");
+  });
 }
 
 export async function setPaymentMethodAction(workOrderId: string, paymentMethod: string) {
-  await requireUser();
+  return runAction(async () => {
+    await requireUser();
 
-  if (!PAYMENT_METHODS.includes(paymentMethod as (typeof PAYMENT_METHODS)[number])) {
-    throw new Error("Forma de pagamento inválida.");
-  }
+    if (!PAYMENT_METHODS.includes(paymentMethod as (typeof PAYMENT_METHODS)[number])) {
+      throw new Error("Forma de pagamento inválida.");
+    }
 
-  await prisma.workOrder.update({
-    where: { id: workOrderId },
-    data: { paymentMethod: paymentMethod as (typeof PAYMENT_METHODS)[number] },
+    const existing = await prisma.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
+    if (!existing) throw new Error("Ordem de serviço não encontrada.");
+    if (!EDITABLE_STATUSES.has(existing.status)) {
+      throw new Error("Só é possível alterar a forma de pagamento de uma OS agendada ou em andamento.");
+    }
+
+    await prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: { paymentMethod: paymentMethod as (typeof PAYMENT_METHODS)[number] },
+    });
+
+    revalidatePath(`/ordens/${workOrderId}`);
   });
-
-  revalidatePath(`/ordens/${workOrderId}`);
 }
 
 export async function addDamagePhotoAction(workOrderId: string, formData: FormData) {
-  await requireUser();
+  return runAction(async () => {
+    await requireUser();
 
-  const file = formData.get("photo") as File | null;
-  const description = (formData.get("description") as string | null) ?? undefined;
+    const existing = await prisma.workOrder.findUnique({
+      where: { id: workOrderId },
+      select: { status: true, _count: { select: { photos: true } } },
+    });
+    if (!existing) throw new Error("Ordem de serviço não encontrada.");
+    if (!EDITABLE_STATUSES.has(existing.status)) {
+      throw new Error("Só é possível alterar o checklist de uma OS agendada ou em andamento.");
+    }
+    if (existing._count.photos >= MAX_DAMAGE_PHOTOS) {
+      throw new Error(`O checklist permite no máximo ${MAX_DAMAGE_PHOTOS} fotos.`);
+    }
 
-  if (!file || file.size === 0) {
-    throw new Error("Selecione uma foto.");
-  }
+    const file = formData.get("photo") as File | null;
+    const description = (formData.get("description") as string | null) ?? undefined;
 
-  const photoPath = await saveUploadedFile(file, `work-orders/${workOrderId}`);
+    if (!file || file.size === 0) {
+      throw new Error("Selecione uma foto.");
+    }
 
-  await prisma.damagePhoto.create({
-    data: { workOrderId, photoPath, description },
+    const photoPath = await saveUploadedFile(file, `work-orders/${workOrderId}`);
+
+    await prisma.damagePhoto.create({
+      data: { workOrderId, photoPath, description },
+    });
+
+    revalidatePath(`/ordens/${workOrderId}`);
   });
-
-  revalidatePath(`/ordens/${workOrderId}`);
 }
 
 export async function deleteDamagePhotoAction(photoId: string, workOrderId: string) {
-  await requireUser();
+  return runAction(async () => {
+    await requireUser();
 
-  const photo = await prisma.damagePhoto.findUnique({ where: { id: photoId } });
-  if (photo) {
-    await deleteUploadedFile(photo.photoPath);
-    await prisma.damagePhoto.delete({ where: { id: photoId } });
-  }
+    const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
+    if (!workOrder) throw new Error("Ordem de serviço não encontrada.");
+    if (!EDITABLE_STATUSES.has(workOrder.status)) {
+      throw new Error("Só é possível alterar o checklist de uma OS agendada ou em andamento.");
+    }
 
-  revalidatePath(`/ordens/${workOrderId}`);
+    const photo = await prisma.damagePhoto.findUnique({ where: { id: photoId } });
+    if (photo) {
+      await deleteUploadedFile(photo.photoPath);
+      await prisma.damagePhoto.delete({ where: { id: photoId } });
+    }
+
+    revalidatePath(`/ordens/${workOrderId}`);
+  });
 }
 
 export async function deleteWorkOrderAction(workOrderId: string) {
-  await requireDeletePermission();
+  return runAction(async () => {
+    await requireDeletePermission();
 
-  const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId } });
-  if (workOrder?.googleEventId) {
-    await deleteWorkOrderCalendarEvent(workOrder.googleEventId);
-  }
+    const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId } });
+    if (workOrder?.googleEventId) {
+      await deleteWorkOrderCalendarEvent(workOrder.googleEventId);
+    }
 
-  await prisma.workOrder.delete({ where: { id: workOrderId } });
-  revalidatePath("/ordens");
+    await prisma.workOrder.delete({ where: { id: workOrderId } });
+    revalidatePath("/ordens");
+  });
 }
 
 export async function reopenWorkOrderAction(workOrderId: string) {
-  await requireReopenPermission();
+  return runAction(async () => {
+    await requireReopenPermission();
 
-  const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId } });
-  if (!workOrder || workOrder.status !== "CONCLUIDO") {
-    throw new Error("Apenas OS concluídas podem ser reabertas.");
-  }
+    const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId } });
+    if (!workOrder || workOrder.status !== "CONCLUIDO") {
+      throw new Error("Apenas OS concluídas podem ser reabertas.");
+    }
 
-  await prisma.workOrder.update({
-    where: { id: workOrderId },
-    data: { status: "EM_ANDAMENTO", finishedAt: null },
+    await prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: { status: "EM_ANDAMENTO", finishedAt: null },
+    });
+
+    revalidatePath(`/ordens/${workOrderId}`);
+    revalidatePath("/ordens");
+    revalidatePath("/agenda");
   });
-
-  revalidatePath(`/ordens/${workOrderId}`);
-  revalidatePath("/ordens");
-  revalidatePath("/agenda");
 }

@@ -15,24 +15,26 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/format";
 export function PaymentMethodEditor({
   workOrderId,
   paymentMethod,
+  disabled = false,
 }: {
   workOrderId: string;
   paymentMethod: string | null;
+  disabled?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
   return (
     <Select
       value={paymentMethod ?? undefined}
-      disabled={isPending}
+      disabled={disabled || isPending}
       onValueChange={(value) => {
         startTransition(async () => {
-          try {
-            await setPaymentMethodAction(workOrderId, value);
-            toast.success("Forma de pagamento atualizada.");
-          } catch {
-            toast.error("Não foi possível atualizar.");
+          const result = await setPaymentMethodAction(workOrderId, value);
+          if (result && "error" in result) {
+            toast.error(result.error);
+            return;
           }
+          toast.success("Forma de pagamento atualizada.");
         });
       }}
     >

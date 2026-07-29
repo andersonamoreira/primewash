@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireDeletePermission } from "@/lib/guards";
+import { runAction } from "@/lib/action-result";
 import { clientSchema, motorcycleSchema } from "@/lib/validations/client";
 
 function firstIssue(error: { issues: { message: string }[] }) {
@@ -90,9 +91,11 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(clientId: string) {
-  await requireDeletePermission();
-  await prisma.client.delete({ where: { id: clientId } });
-  revalidatePath("/clientes");
+  return runAction(async () => {
+    await requireDeletePermission();
+    await prisma.client.delete({ where: { id: clientId } });
+    revalidatePath("/clientes");
+  });
 }
 
 export async function createMotorcycleAction(
@@ -141,7 +144,9 @@ export async function updateMotorcycleAction(
 }
 
 export async function deleteMotorcycleAction(motorcycleId: string, clientId: string) {
-  await requireDeletePermission();
-  await prisma.motorcycle.delete({ where: { id: motorcycleId } });
-  revalidatePath(`/clientes/${clientId}`);
+  return runAction(async () => {
+    await requireDeletePermission();
+    await prisma.motorcycle.delete({ where: { id: motorcycleId } });
+    revalidatePath(`/clientes/${clientId}`);
+  });
 }

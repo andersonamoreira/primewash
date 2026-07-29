@@ -32,6 +32,7 @@ import {
   formatCurrency,
   toDateTimeLocalValue,
   fromDateTimeLocalValue,
+  parseDecimalInput,
 } from "@/lib/format";
 import { CYLINDER_TIERS } from "@/lib/validations/client";
 import { MOTORCYCLE_BRANDS } from "@/lib/motorcycle-brands";
@@ -101,11 +102,11 @@ export function WorkOrderForm({
         const price = effectiveTier ? s.prices.find((p) => p.tier === effectiveTier)?.price : undefined;
         return sum + (price ? Number(price) : 0);
       }, 0);
-    const customTotal = customLines.reduce((sum, l) => sum + (Number(l.price) || 0), 0);
+    const customTotal = customLines.reduce((sum, l) => sum + (parseDecimalInput(l.price) || 0), 0);
     return catalogTotal + customTotal;
   }, [services, serviceIds, effectiveTier, customLines]);
 
-  const discountValue = Math.min(Number(discount) || 0, subtotal);
+  const discountValue = Math.min(parseDecimalInput(discount) || 0, subtotal);
   const total = subtotal - discountValue;
 
   function toggleService(id: string) {
@@ -149,7 +150,7 @@ export function WorkOrderForm({
       setError("Selecione ao menos um serviço.");
       return;
     }
-    if (customLines.some((l) => !l.name.trim() || !(Number(l.price) > 0))) {
+    if (customLines.some((l) => !l.name.trim() || !(parseDecimalInput(l.price) > 0))) {
       setError("Preencha nome e valor de todos os serviços avulsos.");
       return;
     }
@@ -174,7 +175,7 @@ export function WorkOrderForm({
       estimatedDeliveryAt: fromDateTimeLocalValue(estimatedDeliveryAt),
       services: [
         ...serviceIds.map((serviceId) => ({ kind: "catalog" as const, serviceId })),
-        ...customLines.map((l) => ({ kind: "custom" as const, name: l.name, price: Number(l.price) })),
+        ...customLines.map((l) => ({ kind: "custom" as const, name: l.name, price: parseDecimalInput(l.price) })),
       ],
       discount: discountValue,
       paymentMethod: paymentMethod || undefined,
@@ -182,15 +183,14 @@ export function WorkOrderForm({
     };
 
     startTransition(async () => {
-      try {
-        const result = await createWorkOrderAction(payload);
-        toast.success("Ordem de serviço criada com sucesso.");
-        router.push(`/ordens/${result.id}`);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Não foi possível criar a OS.";
-        setError(message);
-        toast.error(message);
+      const result = await createWorkOrderAction(payload);
+      if ("error" in result) {
+        setError(result.error);
+        toast.error(result.error);
+        return;
       }
+      toast.success("Ordem de serviço criada com sucesso.");
+      router.push(`/ordens/${result.id}`);
     });
   }
 

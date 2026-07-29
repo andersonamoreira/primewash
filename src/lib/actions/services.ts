@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/guards";
+import { runAction } from "@/lib/action-result";
 import { serviceSchema } from "@/lib/validations/service";
 
 function firstIssue(error: { issues: { message: string }[] }) {
@@ -82,13 +83,17 @@ export async function updateServiceAction(
 }
 
 export async function toggleServiceActiveAction(serviceId: string, active: boolean) {
-  await requireAdmin();
-  await prisma.service.update({ where: { id: serviceId }, data: { active } });
-  revalidatePath("/servicos");
+  return runAction(async () => {
+    await requireAdmin();
+    await prisma.service.update({ where: { id: serviceId }, data: { active } });
+    revalidatePath("/servicos");
+  });
 }
 
 export async function deleteServiceAction(serviceId: string) {
-  await requireAdmin();
-  await prisma.service.delete({ where: { id: serviceId } });
-  revalidatePath("/servicos");
+  return runAction(async () => {
+    await requireAdmin();
+    await prisma.service.delete({ where: { id: serviceId } });
+    revalidatePath("/servicos");
+  });
 }

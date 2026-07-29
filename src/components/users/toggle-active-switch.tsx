@@ -14,10 +14,9 @@ export function ToggleActiveSwitch({ userId, active }: { userId: string; active:
       disabled={isPending}
       onCheckedChange={(checked) => {
         startTransition(async () => {
-          try {
-            await toggleUserActiveAction(userId, checked);
-          } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Não foi possível atualizar.");
+          const result = await toggleUserActiveAction(userId, checked);
+          if (result && "error" in result) {
+            toast.error(result.error);
           }
         });
       }}
