@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { REFERRAL_SOURCE_LABELS } from "@/lib/format";
+import { REFERRAL_SOURCE_LABELS, CANCELLATION_REASON_LABELS } from "@/lib/format";
 
 export type DateRange = { gte: Date; lt: Date };
 
@@ -22,6 +22,16 @@ export async function getSalesReport({ gte, lt }: DateRange) {
   const statusCounts = { AGENDADO: 0, EM_ANDAMENTO: 0, CONCLUIDO: 0, CANCELADO: 0 };
   for (const wo of workOrders) statusCounts[wo.status]++;
 
+  const cancellationCounts = new Map<string, number>();
+  for (const wo of workOrders) {
+    if (wo.status !== "CANCELADO") continue;
+    const key = wo.cancellationReason ?? "OUTRO";
+    cancellationCounts.set(key, (cancellationCounts.get(key) ?? 0) + 1);
+  }
+  const byCancellationReason = Array.from(cancellationCounts.entries())
+    .map(([key, count]) => ({ name: CANCELLATION_REASON_LABELS[key] ?? key, count }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     orders: workOrders,
     totalOrders: workOrders.length,
@@ -30,6 +40,7 @@ export async function getSalesReport({ gte, lt }: DateRange) {
     totalDiscount,
     paymentTotals,
     statusCounts,
+    byCancellationReason,
   };
 }
 

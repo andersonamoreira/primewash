@@ -143,6 +143,15 @@ export default async function RelatoriosPage({
             </Card>
           </div>
 
+          <div className="mb-6">
+            <ChartCard
+              title="Motivos de cancelamento"
+              description="OS canceladas no período, por motivo"
+            >
+              <SimpleBarChart data={sales.byCancellationReason} orientation="horizontal" />
+            </ChartCard>
+          </div>
+
           <div className="rounded-xl border border-border-subtle bg-surface">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
