@@ -18,16 +18,17 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { updateWorkOrderStatusAction, reopenWorkOrderAction } from "@/lib/actions/work-orders";
-import { CANCELLATION_REASONS, CANCELLATION_REASON_LABELS } from "@/lib/format";
 
 export function StatusActions({
   workOrderId,
   status,
   canReopen = false,
+  cancellationReasons,
 }: {
   workOrderId: string;
   status: string;
   canReopen?: boolean;
+  cancellationReasons: { id: string; name: string }[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -123,9 +124,9 @@ export function StatusActions({
                   <SelectValue placeholder="Selecione o motivo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CANCELLATION_REASONS.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {CANCELLATION_REASON_LABELS[reason]}
+                  {cancellationReasons.map((reason) => (
+                    <SelectItem key={reason.id} value={reason.id}>
+                      {reason.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

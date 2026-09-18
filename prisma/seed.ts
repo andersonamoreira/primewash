@@ -5,6 +5,8 @@ const prisma = new PrismaClient();
 
 const GROUPS = ["Lavagem", "Polimento", "Vitrificação", "Outros"] as const;
 
+const CANCELLATION_REASONS = ["Desistiu", "Valor", "Imprevisto", "Chuva", "Outro"] as const;
+
 const SERVICES: {
   name: string;
   description: string;
@@ -88,6 +90,17 @@ async function main() {
     console.log("Catálogo de serviços inicial criado.");
   } else {
     console.log("Catálogo de serviços já existe — seed de serviços ignorado.");
+  }
+
+  const hasAnyCancellationReason = (await prisma.cancellationReason.count()) > 0;
+
+  if (!hasAnyCancellationReason) {
+    for (const [index, name] of CANCELLATION_REASONS.entries()) {
+      await prisma.cancellationReason.create({ data: { name, sortOrder: index } });
+    }
+    console.log("Motivos de cancelamento iniciais criados.");
+  } else {
+    console.log("Motivos de cancelamento já existem — seed ignorado.");
   }
 
   const adminEmail = "admin@primewash.com.br";

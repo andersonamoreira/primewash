@@ -12,12 +12,7 @@ import { WorkOrderEditDialog } from "@/components/work-orders/work-order-edit-di
 import { PaymentMethodEditor } from "@/components/work-orders/payment-method-editor";
 import { PhotoChecklist } from "@/components/work-orders/photo-checklist";
 import { deleteWorkOrderAction } from "@/lib/actions/work-orders";
-import {
-  CYLINDER_TIER_LABELS,
-  CANCELLATION_REASON_LABELS,
-  formatCurrency,
-  formatDateTime,
-} from "@/lib/format";
+import { CYLINDER_TIER_LABELS, formatCurrency, formatDateTime } from "@/lib/format";
 
 const EDITABLE_STATUSES = new Set(["AGENDADO", "EM_ANDAMENTO"]);
 
@@ -28,7 +23,7 @@ export default async function WorkOrderDetailPage({
 }) {
   const { id } = await params;
 
-  const [session, workOrder, catalogServices] = await Promise.all([
+  const [session, workOrder, catalogServices, cancellationReasons] = await Promise.all([
     auth(),
     prisma.workOrder.findUnique({
       where: { id },
@@ -37,6 +32,7 @@ export default async function WorkOrderDetailPage({
         motorcycle: true,
         services: { include: { service: true } },
         photos: { orderBy: { createdAt: "desc" } },
+        cancellationReason: true,
       },
     }),
     prisma.service.findMany({
@@ -44,6 +40,7 @@ export default async function WorkOrderDetailPage({
       orderBy: { sortOrder: "asc" },
       include: { prices: true, group: true },
     }),
+    prisma.cancellationReason.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
   ]);
 
   if (!workOrder) notFound();
@@ -84,8 +81,7 @@ export default async function WorkOrderDetailPage({
           )}
           {workOrder.status === "CANCELADO" && workOrder.cancellationReason && (
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <XCircle className="size-3.5" /> Motivo do cancelamento:{" "}
-              {CANCELLATION_REASON_LABELS[workOrder.cancellationReason]}
+              <XCircle className="size-3.5" /> Motivo do cancelamento: {workOrder.cancellationReason.name}
             </p>
           )}
         </div>
@@ -116,7 +112,12 @@ export default async function WorkOrderDetailPage({
               <Printer className="size-4" /> Imprimir
             </Link>
           </Button>
-          <StatusActions workOrderId={workOrder.id} status={workOrder.status} canReopen={canReopen} />
+          <StatusActions
+            workOrderId={workOrder.id}
+            status={workOrder.status}
+            canReopen={canReopen}
+            cancellationReasons={cancellationReasons}
+          />
           {isAdmin && (
             <DeleteButton
               confirmMessage={`Excluir a OS #${workOrder.number}? Essa ação não pode ser desfeita.`}

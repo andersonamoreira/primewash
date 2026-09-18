@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { REFERRAL_SOURCE_LABELS, CANCELLATION_REASON_LABELS } from "@/lib/format";
+import { REFERRAL_SOURCE_LABELS } from "@/lib/format";
 
 export type DateRange = { gte: Date; lt: Date };
 
@@ -7,7 +7,7 @@ export async function getSalesReport({ gte, lt }: DateRange) {
   const workOrders = await prisma.workOrder.findMany({
     where: { scheduledAt: { gte, lt } },
     orderBy: { scheduledAt: "desc" },
-    include: { client: true, motorcycle: true },
+    include: { client: true, motorcycle: true, cancellationReason: true },
   });
 
   const completed = workOrders.filter((wo) => wo.status === "CONCLUIDO");
@@ -25,11 +25,11 @@ export async function getSalesReport({ gte, lt }: DateRange) {
   const cancellationCounts = new Map<string, number>();
   for (const wo of workOrders) {
     if (wo.status !== "CANCELADO") continue;
-    const key = wo.cancellationReason ?? "OUTRO";
-    cancellationCounts.set(key, (cancellationCounts.get(key) ?? 0) + 1);
+    const name = wo.cancellationReason?.name ?? "Não informado";
+    cancellationCounts.set(name, (cancellationCounts.get(name) ?? 0) + 1);
   }
   const byCancellationReason = Array.from(cancellationCounts.entries())
-    .map(([key, count]) => ({ name: CANCELLATION_REASON_LABELS[key] ?? key, count }))
+    .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
 
   return {

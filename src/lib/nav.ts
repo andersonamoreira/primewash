@@ -8,6 +8,7 @@ import {
   UserCog,
   Settings,
   BarChart3,
+  XCircle,
 } from "lucide-react";
 
 export type NavItem = {
@@ -30,7 +31,15 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Configurações",
     icon: Settings,
     adminOnly: true,
-    children: [{ href: "/usuarios", label: "Usuários", icon: UserCog, adminOnly: true }],
+    children: [
+      { href: "/usuarios", label: "Usuários", icon: UserCog, adminOnly: true },
+      {
+        href: "/configuracoes/motivos-cancelamento",
+        label: "Motivos de cancelamento",
+        icon: XCircle,
+        adminOnly: true,
+      },
+    ],
   },
 ];
 

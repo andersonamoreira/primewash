@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserCog, ChevronRight } from "lucide-react";
+import { UserCog, XCircle, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const SETTINGS_ITEMS = [
@@ -8,6 +8,12 @@ const SETTINGS_ITEMS = [
     label: "Usuários",
     description: "Gerencie quem tem acesso ao sistema e seus perfis (Administrador ou Comum).",
     icon: UserCog,
+  },
+  {
+    href: "/configuracoes/motivos-cancelamento",
+    label: "Motivos de cancelamento",
+    description: "Cadastre e edite os motivos disponíveis ao cancelar uma OS.",
+    icon: XCircle,
   },
 ];
 

@@ -12,13 +12,7 @@ import {
 } from "@/lib/validations/work-order";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/uploads";
 import { upsertWorkOrderCalendarEvent, deleteWorkOrderCalendarEvent } from "@/lib/google-calendar";
-import {
-  formatCurrency,
-  formatDateTime,
-  PAYMENT_METHOD_LABELS,
-  CANCELLATION_REASONS,
-  MAX_DAMAGE_PHOTOS,
-} from "@/lib/format";
+import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS, MAX_DAMAGE_PHOTOS } from "@/lib/format";
 import type { CylinderTier, Prisma } from "@prisma/client";
 
 type TxClient = Prisma.TransactionClient;
@@ -261,7 +255,7 @@ function buildCalendarDescription(workOrder: WorkOrderForCalendar) {
 export async function updateWorkOrderStatusAction(
   workOrderId: string,
   status: string,
-  cancellationReason?: string
+  cancellationReasonId?: string
 ) {
   return runAction(async () => {
     await requireUser();
@@ -280,15 +274,18 @@ export async function updateWorkOrderStatusAction(
       }
     }
 
-    if (status === "CANCELADO" && !CANCELLATION_REASONS.includes(cancellationReason as never)) {
-      throw new Error("Selecione o motivo do cancelamento.");
+    if (status === "CANCELADO") {
+      const reason = cancellationReasonId
+        ? await prisma.cancellationReason.findUnique({ where: { id: cancellationReasonId } })
+        : null;
+      if (!reason) throw new Error("Selecione o motivo do cancelamento.");
     }
 
     const data: {
       status: "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
       startedAt?: Date;
       finishedAt?: Date;
-      cancellationReason?: (typeof CANCELLATION_REASONS)[number];
+      cancellationReasonId?: string;
     } = {
       status: status as "AGENDADO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO",
     };
@@ -296,7 +293,7 @@ export async function updateWorkOrderStatusAction(
     if (status === "EM_ANDAMENTO") data.startedAt = new Date();
     if (status === "CONCLUIDO") data.finishedAt = new Date();
     if (status === "CANCELADO") {
-      data.cancellationReason = cancellationReason as (typeof CANCELLATION_REASONS)[number];
+      data.cancellationReasonId = cancellationReasonId;
     }
 
     const workOrder = await prisma.workOrder.update({ where: { id: workOrderId }, data });
