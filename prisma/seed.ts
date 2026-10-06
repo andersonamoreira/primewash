@@ -7,6 +7,12 @@ const GROUPS = ["Lavagem", "Polimento", "Vitrificação", "Outros"] as const;
 
 const CANCELLATION_REASONS = ["Desistiu", "Valor", "Imprevisto", "Chuva", "Outro"] as const;
 
+const CREDIT_CARD_FEE_TIERS = [
+  { minInstallments: 1, maxInstallments: 1, feePercent: 4.98 },
+  { minInstallments: 2, maxInstallments: 6, feePercent: 2.99 },
+  { minInstallments: 7, maxInstallments: 12, feePercent: 3.09 },
+];
+
 const SERVICES: {
   name: string;
   description: string;
@@ -101,6 +107,17 @@ async function main() {
     console.log("Motivos de cancelamento iniciais criados.");
   } else {
     console.log("Motivos de cancelamento já existem — seed ignorado.");
+  }
+
+  const hasAnyCreditCardFeeTier = (await prisma.creditCardFeeTier.count()) > 0;
+
+  if (!hasAnyCreditCardFeeTier) {
+    for (const tier of CREDIT_CARD_FEE_TIERS) {
+      await prisma.creditCardFeeTier.create({ data: tier });
+    }
+    console.log("Taxas de cartão de crédito iniciais criadas.");
+  } else {
+    console.log("Taxas de cartão de crédito já existem — seed ignorado.");
   }
 
   const adminEmail = "admin@primewash.com.br";

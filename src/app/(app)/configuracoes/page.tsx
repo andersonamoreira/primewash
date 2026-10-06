@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserCog, XCircle, ChevronRight } from "lucide-react";
+import { UserCog, XCircle, CreditCard, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const SETTINGS_ITEMS = [
@@ -14,6 +14,12 @@ const SETTINGS_ITEMS = [
     label: "Motivos de cancelamento",
     description: "Cadastre e edite os motivos disponíveis ao cancelar uma OS.",
     icon: XCircle,
+  },
+  {
+    href: "/configuracoes/taxas-cartao",
+    label: "Taxas de cartão de crédito",
+    description: "Defina as taxas por faixa de parcelamento (até 12x) cobradas pela operadora.",
+    icon: CreditCard,
   },
 ];
 

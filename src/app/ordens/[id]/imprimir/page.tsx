@@ -133,6 +133,9 @@ export default async function PrintWorkOrderPage({
         <div className="mt-1 text-gray-600">
           Pagamento:{" "}
           {workOrder.paymentMethod ? PAYMENT_METHOD_LABELS[workOrder.paymentMethod] : "A definir"}
+          {workOrder.paymentMethod === "CREDITO" && workOrder.installments
+            ? ` (${workOrder.installments}x)`
+            : ""}
         </div>
       </div>
 

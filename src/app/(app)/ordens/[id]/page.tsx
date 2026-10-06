@@ -10,6 +10,7 @@ import { WorkOrderStatusBadge } from "@/components/work-orders/status-badge";
 import { StatusActions } from "@/components/work-orders/status-actions";
 import { WorkOrderEditDialog } from "@/components/work-orders/work-order-edit-dialog";
 import { PaymentMethodEditor } from "@/components/work-orders/payment-method-editor";
+import { CreditCardInstallmentsEditor } from "@/components/work-orders/credit-card-installments-editor";
 import { PhotoChecklist } from "@/components/work-orders/photo-checklist";
 import { deleteWorkOrderAction } from "@/lib/actions/work-orders";
 import { CYLINDER_TIER_LABELS, formatCurrency, formatDateTime } from "@/lib/format";
@@ -23,7 +24,7 @@ export default async function WorkOrderDetailPage({
 }) {
   const { id } = await params;
 
-  const [session, workOrder, catalogServices, cancellationReasons] = await Promise.all([
+  const [session, workOrder, catalogServices, cancellationReasons, creditCardFeeTiers] = await Promise.all([
     auth(),
     prisma.workOrder.findUnique({
       where: { id },
@@ -41,6 +42,7 @@ export default async function WorkOrderDetailPage({
       include: { prices: true, group: true },
     }),
     prisma.cancellationReason.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
+    prisma.creditCardFeeTier.findMany({ orderBy: { minInstallments: "asc" } }),
   ]);
 
   if (!workOrder) notFound();
@@ -187,13 +189,29 @@ export default async function WorkOrderDetailPage({
               {formatCurrency(workOrder.totalAmount.toString())}
             </span>
           </div>
-          <div className="mt-4">
-            <p className="mb-1.5 text-xs text-muted-foreground">Forma de pagamento</p>
-            <PaymentMethodEditor
-              workOrderId={workOrder.id}
-              paymentMethod={workOrder.paymentMethod}
-              disabled={!canEdit}
-            />
+          <div className="mt-4 flex flex-col gap-3">
+            <div>
+              <p className="mb-1.5 text-xs text-muted-foreground">Forma de pagamento</p>
+              <PaymentMethodEditor
+                workOrderId={workOrder.id}
+                paymentMethod={workOrder.paymentMethod}
+                totalAmount={Number(workOrder.totalAmount)}
+                disabled={!canEdit}
+              />
+            </div>
+            {workOrder.paymentMethod === "CREDITO" && (
+              <div>
+                <p className="mb-1.5 text-xs text-muted-foreground">Parcelamento</p>
+                <CreditCardInstallmentsEditor
+                  workOrderId={workOrder.id}
+                  totalAmount={Number(workOrder.totalAmount)}
+                  installments={workOrder.installments}
+                  cardFeePercent={workOrder.cardFeePercent ? Number(workOrder.cardFeePercent) : null}
+                  tiers={creditCardFeeTiers.map((t) => ({ ...t, feePercent: Number(t.feePercent) }))}
+                  disabled={!canEdit}
+                />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

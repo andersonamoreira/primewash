@@ -9,6 +9,7 @@ import {
   Settings,
   BarChart3,
   XCircle,
+  CreditCard,
 } from "lucide-react";
 
 export type NavItem = {
@@ -37,6 +38,12 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/configuracoes/motivos-cancelamento",
         label: "Motivos de cancelamento",
         icon: XCircle,
+        adminOnly: true,
+      },
+      {
+        href: "/configuracoes/taxas-cartao",
+        label: "Taxas de cartão",
+        icon: CreditCard,
         adminOnly: true,
       },
     ],

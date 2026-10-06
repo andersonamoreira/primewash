@@ -13,6 +13,7 @@ import {
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/uploads";
 import { upsertWorkOrderCalendarEvent, deleteWorkOrderCalendarEvent } from "@/lib/google-calendar";
 import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS, MAX_DAMAGE_PHOTOS } from "@/lib/format";
+import { findFeeTierForInstallments } from "@/lib/credit-card-fees";
 import type { CylinderTier, Prisma } from "@prisma/client";
 
 type TxClient = Prisma.TransactionClient;
@@ -323,12 +324,64 @@ export async function setPaymentMethodAction(workOrderId: string, paymentMethod:
       throw new Error("Só é possível alterar a forma de pagamento de uma OS agendada ou em andamento.");
     }
 
+    if (paymentMethod !== "CREDITO") {
+      await prisma.workOrder.update({
+        where: { id: workOrderId },
+        data: { paymentMethod: paymentMethod as (typeof PAYMENT_METHODS)[number], installments: null, cardFeePercent: null },
+      });
+      revalidatePath(`/ordens/${workOrderId}`);
+      return { installments: null as number | null, feePercent: null as number | null };
+    }
+
+    // Ao escolher Cartão de Crédito, já entra como à vista (1x) por padrão.
+    const tiers = await prisma.creditCardFeeTier.findMany();
+    const tier = findFeeTierForInstallments(tiers, 1);
+
     await prisma.workOrder.update({
       where: { id: workOrderId },
-      data: { paymentMethod: paymentMethod as (typeof PAYMENT_METHODS)[number] },
+      data: {
+        paymentMethod: "CREDITO",
+        installments: tier ? 1 : null,
+        cardFeePercent: tier ? tier.feePercent : null,
+      },
     });
 
     revalidatePath(`/ordens/${workOrderId}`);
+    return { installments: tier ? 1 : null, feePercent: tier ? Number(tier.feePercent) : null };
+  });
+}
+
+export async function setCreditCardInstallmentsAction(workOrderId: string, installments: number) {
+  return runAction(async () => {
+    await requireUser();
+
+    if (!Number.isInteger(installments) || installments < 1 || installments > 12) {
+      throw new Error("Número de parcelas inválido.");
+    }
+
+    const existing = await prisma.workOrder.findUnique({
+      where: { id: workOrderId },
+      select: { status: true, paymentMethod: true },
+    });
+    if (!existing) throw new Error("Ordem de serviço não encontrada.");
+    if (!EDITABLE_STATUSES.has(existing.status)) {
+      throw new Error("Só é possível alterar o parcelamento de uma OS agendada ou em andamento.");
+    }
+    if (existing.paymentMethod !== "CREDITO") {
+      throw new Error("Selecione a forma de pagamento Cartão de Crédito antes de escolher o parcelamento.");
+    }
+
+    const tiers = await prisma.creditCardFeeTier.findMany();
+    const tier = findFeeTierForInstallments(tiers, installments);
+    if (!tier) throw new Error("Não há taxa cadastrada para esse número de parcelas.");
+
+    await prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: { installments, cardFeePercent: tier.feePercent },
+    });
+
+    revalidatePath(`/ordens/${workOrderId}`);
+    return { installments, feePercent: Number(tier.feePercent) };
   });
 }
 

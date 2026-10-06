@@ -10,15 +10,18 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { setPaymentMethodAction } from "@/lib/actions/work-orders";
-import { PAYMENT_METHOD_LABELS } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS, formatCurrency } from "@/lib/format";
+import { computeCardFeeAmount } from "@/lib/credit-card-fees";
 
 export function PaymentMethodEditor({
   workOrderId,
   paymentMethod,
+  totalAmount,
   disabled = false,
 }: {
   workOrderId: string;
   paymentMethod: string | null;
+  totalAmount: number;
   disabled?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -34,7 +37,15 @@ export function PaymentMethodEditor({
             toast.error(result.error);
             return;
           }
-          toast.success("Forma de pagamento atualizada.");
+          if (value === "CREDITO" && result.feePercent !== null) {
+            const feeAmount = computeCardFeeAmount(totalAmount, result.feePercent);
+            toast.warning(
+              `Atenção: venda no cartão de crédito à vista aplica taxa de ${result.feePercent.toLocaleString("pt-BR")}% ` +
+                `(${formatCurrency(feeAmount)}). Você vai receber ${formatCurrency(totalAmount - feeAmount)} líquidos.`
+            );
+          } else {
+            toast.success("Forma de pagamento atualizada.");
+          }
         });
       }}
     >
