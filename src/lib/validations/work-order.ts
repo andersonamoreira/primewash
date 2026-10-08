@@ -27,6 +27,7 @@ export const createWorkOrderSchema = z.object({
     .object({
       name: z.string().trim().min(2, "Informe o nome do cliente"),
       phone: z.string().trim().min(8, "Informe um telefone válido"),
+      document: optionalText,
     })
     .optional(),
 

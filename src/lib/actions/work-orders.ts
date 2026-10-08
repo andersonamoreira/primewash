@@ -14,6 +14,7 @@ import { saveUploadedFile, deleteUploadedFile } from "@/lib/uploads";
 import { upsertWorkOrderCalendarEvent, deleteWorkOrderCalendarEvent } from "@/lib/google-calendar";
 import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS, MAX_DAMAGE_PHOTOS } from "@/lib/format";
 import { findFeeTierForInstallments } from "@/lib/credit-card-fees";
+import { findDuplicateClient } from "@/lib/client-duplicates";
 import type { CylinderTier, Prisma } from "@prisma/client";
 
 type TxClient = Prisma.TransactionClient;
@@ -78,16 +79,14 @@ export async function createWorkOrderAction(input: unknown) {
     const workOrder = await prisma.$transaction(async (tx) => {
       let clientId = data.clientId;
       if (!clientId && data.newClient) {
-        const normalizedPhone = data.newClient.phone.replace(/\D/g, "");
-        const existingClients = await tx.client.findMany({ select: { id: true, name: true, phone: true } });
-        const duplicate = existingClients.find((c) => c.phone.replace(/\D/g, "") === normalizedPhone);
+        const duplicate = await findDuplicateClient(tx, data.newClient.phone, data.newClient.document);
         if (duplicate) {
           throw new Error(
-            `Já existe um cliente cadastrado com esse telefone: ${duplicate.name}. Selecione-o em "Cliente existente".`
+            `Já existe um cliente cadastrado com esse telefone ou CPF: ${duplicate.name}. Selecione-o em "Cliente existente".`
           );
         }
         const client = await tx.client.create({
-          data: { name: data.newClient.name, phone: data.newClient.phone },
+          data: { name: data.newClient.name, phone: data.newClient.phone, document: data.newClient.document },
         });
         clientId = client.id;
       }

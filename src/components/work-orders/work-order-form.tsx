@@ -6,6 +6,7 @@ import { Loader2, UserPlus, Bike } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { CpfInput } from "@/components/ui/cpf-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ export function WorkOrderForm({
   const [clientId, setClientId] = useState<string | undefined>(initialClientId);
   const [newClientName, setNewClientName] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientDocument, setNewClientDocument] = useState("");
 
   const selectedClient = clients.find((c) => c.id === clientId);
 
@@ -157,7 +159,10 @@ export function WorkOrderForm({
 
     const payload = {
       clientId: clientMode === "existing" ? clientId : undefined,
-      newClient: clientMode === "new" ? { name: newClientName, phone: newClientPhone } : undefined,
+      newClient:
+        clientMode === "new"
+          ? { name: newClientName, phone: newClientPhone, document: newClientDocument || undefined }
+          : undefined,
       motorcycleId:
         clientMode === "existing" && motorcycleMode === "existing" ? motorcycleId : undefined,
       newMotorcycle:
@@ -239,6 +244,14 @@ export function WorkOrderForm({
                   value={newClientPhone}
                   onValueChange={setNewClientPhone}
                   required={clientMode === "new"}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="newClientDocument">CPF</Label>
+                <CpfInput
+                  id="newClientDocument"
+                  value={newClientDocument}
+                  onValueChange={setNewClientDocument}
                 />
               </div>
             </div>
