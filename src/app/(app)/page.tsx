@@ -47,7 +47,7 @@ export default async function DashboardPage() {
           sublabel="aguardando atendimento"
           icon={CalendarClock}
           color="violet"
-          href={`/ordens?fromInstant=${encodeURIComponent(data.upcomingSince)}&status=AGENDADO`}
+          href="/ordens?status=AGENDADO"
         />
         <StatTile
           label="Clientes"
