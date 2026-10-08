@@ -9,6 +9,7 @@ import {
   dayStartInAppTimeZone,
   dayEndExclusiveInAppTimeZone,
   getHourInAppTimeZone,
+  toDateTimeLocalValue,
   PAYMENT_METHOD_LABELS,
   WORK_ORDER_STATUS_LABELS,
 } from "@/lib/format";
@@ -27,6 +28,7 @@ type SearchParams = {
   statusNot?: string;
   from?: string;
   to?: string;
+  fromInstant?: string;
   paymentMethod?: string;
   cancellationReasonId?: string;
   service?: string;
@@ -40,16 +42,20 @@ export default async function WorkOrdersPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const { status, statusNot, from, to, paymentMethod, cancellationReasonId, service, moto, hour } = sp;
+  const { status, statusNot, from, to, fromInstant, paymentMethod, cancellationReasonId, service, moto, hour } = sp;
 
   const [workOrdersRaw, cancellationReason] = await Promise.all([
     prisma.workOrder.findMany({
       where: {
         ...(status ? { status: status as never } : statusNot ? { status: { not: statusNot as never } } : {}),
-        ...(from || to
+        ...(from || to || fromInstant
           ? {
               scheduledAt: {
-                ...(from ? { gte: dayStartInAppTimeZone(from) } : {}),
+                ...(fromInstant
+                  ? { gte: new Date(fromInstant) }
+                  : from
+                    ? { gte: dayStartInAppTimeZone(from) }
+                    : {}),
                 ...(to ? { lt: dayEndExclusiveInAppTimeZone(to) } : {}),
               },
             }
@@ -183,7 +189,7 @@ export default async function WorkOrdersPage({
             id="from"
             type="date"
             name="from"
-            defaultValue={from}
+            defaultValue={from ?? (fromInstant ? toDateTimeLocalValue(new Date(fromInstant)).slice(0, 10) : undefined)}
             className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground"
           />
         </div>
@@ -202,9 +208,9 @@ export default async function WorkOrdersPage({
         <Button type="submit" variant="secondary" size="sm">
           Filtrar
         </Button>
-        {(from || to) && (
+        {(from || to || fromInstant) && (
           <Button asChild type="button" variant="ghost" size="sm">
-            <Link href={buildHref({ from: undefined, to: undefined })}>Limpar datas</Link>
+            <Link href={buildHref({ from: undefined, to: undefined, fromInstant: undefined })}>Limpar datas</Link>
           </Button>
         )}
       </form>

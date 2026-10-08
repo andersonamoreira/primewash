@@ -6,20 +6,13 @@ import { ChartCard } from "@/components/dashboard/chart-card";
 import { SimpleBarChart } from "@/components/dashboard/charts/bar-chart";
 import { RevenueChart } from "@/components/dashboard/charts/revenue-chart";
 import { PaymentMethodBars } from "@/components/dashboard/charts/payment-method-bars";
-import {
-  formatCurrency,
-  greetingForHour,
-  formatLongDate,
-  getHourInAppTimeZone,
-  toDateTimeLocalValue,
-} from "@/lib/format";
+import { formatCurrency, greetingForHour, formatLongDate, getHourInAppTimeZone } from "@/lib/format";
 
 export default async function DashboardPage() {
   const [session, data] = await Promise.all([auth(), getDashboardData()]);
   const now = new Date();
   const firstName = session?.user.name?.split(" ")[0] ?? "";
   const { from: monthFrom, to: monthTo } = data.monthRange;
-  const today = toDateTimeLocalValue(now).slice(0, 10);
 
   return (
     <div>
@@ -54,7 +47,7 @@ export default async function DashboardPage() {
           sublabel="aguardando atendimento"
           icon={CalendarClock}
           color="violet"
-          href={`/ordens?from=${today}&status=AGENDADO`}
+          href={`/ordens?fromInstant=${encodeURIComponent(data.upcomingSince)}&status=AGENDADO`}
         />
         <StatTile
           label="Clientes"

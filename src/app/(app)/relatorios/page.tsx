@@ -38,10 +38,13 @@ export default async function RelatoriosPage({
 
   const now = new Date();
   const monthBounds = monthBoundsInAppTimeZone(now);
+  const pad = (n: number) => String(n).padStart(2, "0");
   const gte = from ? dayStartInAppTimeZone(from) : monthBounds.start;
   const lt = to ? dayEndExclusiveInAppTimeZone(to) : monthBounds.end;
   const fromValue = from ?? toDateTimeLocalValue(monthBounds.start).slice(0, 10);
-  const toValue = to ?? toDateTimeLocalValue(now).slice(0, 10);
+  // Deve refletir o mesmo limite usado em `lt` (fim do mês), não o dia de hoje —
+  // senão os links de drill-down ficam mais curtos que o período realmente somado acima.
+  const toValue = to ?? `${monthBounds.year}-${pad(monthBounds.month)}-${pad(monthBounds.daysInMonth)}`;
 
   const [sales, referral, services] = await Promise.all([
     getSalesReport({ gte, lt }),

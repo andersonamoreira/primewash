@@ -15,7 +15,7 @@ export async function getDashboardData(reference: Date = new Date()) {
       },
     }),
     prisma.workOrder.count({
-      where: { status: "AGENDADO", scheduledAt: { gte: new Date() } },
+      where: { status: "AGENDADO", scheduledAt: { gte: reference } },
     }),
     prisma.client.count(),
   ]);
@@ -91,6 +91,8 @@ export async function getDashboardData(reference: Date = new Date()) {
       upcomingCount,
       totalClients: allTimeClients,
     },
+    // mesmo instante usado no filtro de upcomingCount acima, para o drill-down bater exatamente com o card
+    upcomingSince: reference.toISOString(),
     monthRange,
     motosByBrand,
     topServices,
