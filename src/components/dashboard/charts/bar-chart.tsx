@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,15 +18,24 @@ const GRID_COLOR = "var(--border-subtle)";
 const CURSOR_FILL = "color-mix(in srgb, var(--foreground) 6%, transparent)";
 const BAR_COLOR = "#3fa8ec";
 
+type BarDatum = { name: string; count: number; href?: string };
+
 export function SimpleBarChart({
   data,
   orientation = "vertical",
   height = 260,
 }: {
-  data: { name: string; count: number }[];
+  data: BarDatum[];
   orientation?: "vertical" | "horizontal";
   height?: number;
 }) {
+  const router = useRouter();
+  const clickable = data.some((d) => d.href);
+
+  function handleBarClick(datum: BarDatum) {
+    if (datum.href) router.push(datum.href);
+  }
+
   if (data.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
@@ -62,7 +73,18 @@ export function SimpleBarChart({
               />
             )}
           />
-          <Bar dataKey="count" fill={BAR_COLOR} radius={[0, 4, 4, 0]} maxBarSize={22} />
+          <Bar
+            dataKey="count"
+            fill={BAR_COLOR}
+            radius={[0, 4, 4, 0]}
+            maxBarSize={22}
+            cursor={clickable ? "pointer" : undefined}
+            onClick={(_, index) => handleBarClick(data[index])}
+          >
+            {data.map((d) => (
+              <Cell key={d.name} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     );
@@ -88,7 +110,18 @@ export function SimpleBarChart({
             />
           )}
         />
-        <Bar dataKey="count" fill={BAR_COLOR} radius={[4, 4, 0, 0]} maxBarSize={24} />
+        <Bar
+          dataKey="count"
+          fill={BAR_COLOR}
+          radius={[4, 4, 0, 0]}
+          maxBarSize={24}
+          cursor={clickable ? "pointer" : undefined}
+          onClick={(_, index) => handleBarClick(data[index])}
+        >
+          {data.map((d) => (
+            <Cell key={d.name} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

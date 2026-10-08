@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { WorkOrderStatusBadge } from "@/components/work-orders/status-badge";
@@ -8,6 +8,9 @@ import {
   formatDateTime,
   dayStartInAppTimeZone,
   dayEndExclusiveInAppTimeZone,
+  getHourInAppTimeZone,
+  PAYMENT_METHOD_LABELS,
+  WORK_ORDER_STATUS_LABELS,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -19,33 +22,100 @@ const STATUS_FILTERS = [
   { value: "CANCELADO", label: "Canceladas" },
 ] as const;
 
+type SearchParams = {
+  status?: string;
+  statusNot?: string;
+  from?: string;
+  to?: string;
+  paymentMethod?: string;
+  cancellationReasonId?: string;
+  service?: string;
+  moto?: string;
+  hour?: string;
+};
+
 export default async function WorkOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const { status, from, to } = await searchParams;
+  const sp = await searchParams;
+  const { status, statusNot, from, to, paymentMethod, cancellationReasonId, service, moto, hour } = sp;
 
-  const workOrders = await prisma.workOrder.findMany({
-    where: {
-      ...(status ? { status: status as never } : {}),
-      ...(from || to
-        ? {
-            scheduledAt: {
-              ...(from ? { gte: dayStartInAppTimeZone(from) } : {}),
-              ...(to ? { lt: dayEndExclusiveInAppTimeZone(to) } : {}),
-            },
-          }
-        : {}),
+  const [workOrdersRaw, cancellationReason] = await Promise.all([
+    prisma.workOrder.findMany({
+      where: {
+        ...(status ? { status: status as never } : statusNot ? { status: { not: statusNot as never } } : {}),
+        ...(from || to
+          ? {
+              scheduledAt: {
+                ...(from ? { gte: dayStartInAppTimeZone(from) } : {}),
+                ...(to ? { lt: dayEndExclusiveInAppTimeZone(to) } : {}),
+              },
+            }
+          : {}),
+        ...(paymentMethod ? { paymentMethod: paymentMethod as never } : {}),
+        ...(cancellationReasonId
+          ? { cancellationReasonId: cancellationReasonId === "NONE" ? null : cancellationReasonId }
+          : {}),
+        ...(service
+          ? { services: { some: { OR: [{ service: { name: service } }, { customName: service }] } } }
+          : {}),
+        ...(moto
+          ? {
+              motorcycle: {
+                OR: [
+                  { brand: { contains: moto, mode: "insensitive" } },
+                  { model: { contains: moto, mode: "insensitive" } },
+                ],
+              },
+            }
+          : {}),
+      },
+      orderBy: { scheduledAt: "desc" },
+      include: {
+        client: true,
+        motorcycle: true,
+        services: { include: { service: true } },
+      },
+      take: hour !== undefined ? 500 : 100,
+    }),
+    cancellationReasonId && cancellationReasonId !== "NONE"
+      ? prisma.cancellationReason.findUnique({ where: { id: cancellationReasonId } })
+      : null,
+  ]);
+
+  const workOrders =
+    hour !== undefined
+      ? workOrdersRaw.filter((wo) => getHourInAppTimeZone(wo.scheduledAt) === Number(hour))
+      : workOrdersRaw;
+
+  function buildHref(overrides: Partial<Record<keyof SearchParams, string | undefined>>) {
+    const params = new URLSearchParams();
+    const merged = { ...sp, ...overrides };
+    for (const [key, value] of Object.entries(merged)) {
+      if (value) params.set(key, value);
+    }
+    return params.size > 0 ? `/ordens?${params.toString()}` : "/ordens";
+  }
+
+  const chips = [
+    paymentMethod && {
+      label: `Pagamento: ${PAYMENT_METHOD_LABELS[paymentMethod] ?? paymentMethod}`,
+      href: buildHref({ paymentMethod: undefined }),
     },
-    orderBy: { scheduledAt: "desc" },
-    include: {
-      client: true,
-      motorcycle: true,
-      services: { include: { service: true } },
+    cancellationReasonId && {
+      label: `Motivo: ${cancellationReasonId === "NONE" ? "Não informado" : (cancellationReason?.name ?? "—")}`,
+      href: buildHref({ cancellationReasonId: undefined }),
     },
-    take: 100,
-  });
+    service && { label: `Serviço: ${service}`, href: buildHref({ service: undefined }) },
+    moto && { label: `Moto: ${moto}`, href: buildHref({ moto: undefined }) },
+    hour !== undefined && { label: `Horário: ${hour}h`, href: buildHref({ hour: undefined }) },
+    statusNot && {
+      label: `Exceto: ${WORK_ORDER_STATUS_LABELS[statusNot] ?? statusNot}`,
+      href: buildHref({ statusNot: undefined }),
+    },
+  ].filter((c): c is { label: string; href: string } => Boolean(c));
 
   return (
     <div>
@@ -64,11 +134,7 @@ export default async function WorkOrdersPage({
       <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
         {STATUS_FILTERS.map((filter) => {
           const isActive = (filter.value ?? "") === (status ?? "");
-          const params = new URLSearchParams();
-          if (filter.value) params.set("status", filter.value);
-          if (from) params.set("from", from);
-          if (to) params.set("to", to);
-          const href = params.size > 0 ? `/ordens?${params.toString()}` : "/ordens";
+          const href = buildHref({ status: filter.value, statusNot: undefined });
           return (
             <Link
               key={filter.label}
@@ -86,8 +152,29 @@ export default async function WorkOrdersPage({
         })}
       </div>
 
+      {chips.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <Link
+              key={chip.label}
+              href={chip.href}
+              className="flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-xs font-medium text-pw-blue-300 transition-colors hover:bg-primary/25"
+            >
+              {chip.label}
+              <X className="size-3" />
+            </Link>
+          ))}
+        </div>
+      )}
+
       <form className="mb-5 flex flex-wrap items-end gap-3" action="/ordens">
         {status && <input type="hidden" name="status" value={status} />}
+        {statusNot && <input type="hidden" name="statusNot" value={statusNot} />}
+        {paymentMethod && <input type="hidden" name="paymentMethod" value={paymentMethod} />}
+        {cancellationReasonId && <input type="hidden" name="cancellationReasonId" value={cancellationReasonId} />}
+        {service && <input type="hidden" name="service" value={service} />}
+        {moto && <input type="hidden" name="moto" value={moto} />}
+        {hour !== undefined && <input type="hidden" name="hour" value={hour} />}
         <div className="flex flex-col gap-1">
           <label htmlFor="from" className="text-xs font-medium text-muted-foreground">
             De
@@ -117,7 +204,7 @@ export default async function WorkOrdersPage({
         </Button>
         {(from || to) && (
           <Button asChild type="button" variant="ghost" size="sm">
-            <Link href={status ? `/ordens?status=${status}` : "/ordens"}>Limpar datas</Link>
+            <Link href={buildHref({ from: undefined, to: undefined })}>Limpar datas</Link>
           </Button>
         )}
       </form>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 
 const METHODS = [
@@ -7,10 +8,14 @@ const METHODS = [
   { key: "DINHEIRO" as const, label: "Dinheiro", color: "#6b7280" },
 ];
 
+type Method = "DEBITO" | "CREDITO" | "PIX" | "DINHEIRO";
+
 export function PaymentMethodBars({
   totals,
+  hrefs,
 }: {
-  totals: Record<"DEBITO" | "CREDITO" | "PIX" | "DINHEIRO", number>;
+  totals: Record<Method, number>;
+  hrefs?: Partial<Record<Method, string>>;
 }) {
   const max = Math.max(...METHODS.map((m) => totals[m.key]), 1);
   const grandTotal = METHODS.reduce((sum, m) => sum + totals[m.key], 0);
@@ -28,8 +33,9 @@ export function PaymentMethodBars({
       {METHODS.map((method) => {
         const value = totals[method.key];
         const widthPct = Math.max((value / max) * 100, value > 0 ? 4 : 0);
-        return (
-          <div key={method.key}>
+        const href = hrefs?.[method.key];
+        const content = (
+          <>
             <div className="mb-1.5 flex items-center justify-between text-sm">
               <span className="flex items-center gap-2 text-foreground">
                 <span className="size-2 rounded-full" style={{ backgroundColor: method.color }} />
@@ -43,7 +49,14 @@ export function PaymentMethodBars({
                 style={{ width: `${widthPct}%`, backgroundColor: method.color }}
               />
             </div>
-          </div>
+          </>
+        );
+        return href ? (
+          <Link key={method.key} href={href} className="block transition-opacity hover:opacity-80">
+            {content}
+          </Link>
+        ) : (
+          <div key={method.key}>{content}</div>
         );
       })}
     </div>

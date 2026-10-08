@@ -22,15 +22,17 @@ export async function getSalesReport({ gte, lt }: DateRange) {
   const statusCounts = { AGENDADO: 0, EM_ANDAMENTO: 0, CONCLUIDO: 0, CANCELADO: 0 };
   for (const wo of workOrders) statusCounts[wo.status]++;
 
-  const cancellationCounts = new Map<string, number>();
+  const cancellationCounts = new Map<string, { name: string; id: string | null; count: number }>();
   for (const wo of workOrders) {
     if (wo.status !== "CANCELADO") continue;
+    const id = wo.cancellationReasonId;
+    const key = id ?? "NONE";
     const name = wo.cancellationReason?.name ?? "Não informado";
-    cancellationCounts.set(name, (cancellationCounts.get(name) ?? 0) + 1);
+    const entry = cancellationCounts.get(key) ?? { name, id, count: 0 };
+    entry.count += 1;
+    cancellationCounts.set(key, entry);
   }
-  const byCancellationReason = Array.from(cancellationCounts.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
+  const byCancellationReason = Array.from(cancellationCounts.values()).sort((a, b) => b.count - a.count);
 
   return {
     orders: workOrders,
@@ -61,10 +63,10 @@ export async function getReferralReport({ gte, lt }: DateRange) {
   }
 
   const byReferral = Array.from(counts.entries())
-    .map(([key, count]) => ({ name: REFERRAL_SOURCE_LABELS[key] ?? key, count }))
+    .map(([key, count]) => ({ name: REFERRAL_SOURCE_LABELS[key] ?? key, key, count }))
     .sort((a, b) => b.count - a.count);
 
-  if (unspecified > 0) byReferral.push({ name: "Não informado", count: unspecified });
+  if (unspecified > 0) byReferral.push({ name: "Não informado", key: "NONE", count: unspecified });
 
   return { totalNewClients: clients.length, byReferral };
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Bike, Wallet, CheckCircle2, Percent, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,9 @@ export default async function RelatoriosPage({
     getReferralReport({ gte, lt }),
     getServicesReport({ gte, lt }),
   ]);
+
+  const osBase = `from=${fromValue}&to=${toValue}`;
+  const clBase = `from=${fromValue}&to=${toValue}`;
 
   return (
     <div>
@@ -102,12 +106,14 @@ export default async function RelatoriosPage({
               value={String(sales.totalOrders)}
               icon={Bike}
               color="blue"
+              href={`/ordens?${osBase}`}
             />
             <StatTile
               label="OS concluídas"
               value={String(sales.completedOrders)}
               icon={CheckCircle2}
               color="teal"
+              href={`/ordens?${osBase}&status=CONCLUIDO`}
             />
             <StatTile
               label="Faturamento"
@@ -115,6 +121,7 @@ export default async function RelatoriosPage({
               sublabel="serviços concluídos"
               icon={Wallet}
               color="green"
+              href={`/ordens?${osBase}&status=CONCLUIDO`}
             />
             <StatTile
               label="Descontos"
@@ -122,22 +129,35 @@ export default async function RelatoriosPage({
               sublabel="concedidos"
               icon={Percent}
               color="orange"
+              href={`/ordens?${osBase}&status=CONCLUIDO`}
             />
           </div>
 
           <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <ChartCard title="Faturamento por forma de pagamento">
-              <PaymentMethodBars totals={sales.paymentTotals} />
+              <PaymentMethodBars
+                totals={sales.paymentTotals}
+                hrefs={{
+                  DEBITO: `/ordens?${osBase}&status=CONCLUIDO&paymentMethod=DEBITO`,
+                  CREDITO: `/ordens?${osBase}&status=CONCLUIDO&paymentMethod=CREDITO`,
+                  PIX: `/ordens?${osBase}&status=CONCLUIDO&paymentMethod=PIX`,
+                  DINHEIRO: `/ordens?${osBase}&status=CONCLUIDO&paymentMethod=DINHEIRO`,
+                }}
+              />
             </ChartCard>
 
             <Card>
               <CardContent className="flex flex-col gap-3">
                 <p className="text-sm font-semibold text-foreground">OS por status</p>
                 {Object.entries(sales.statusCounts).map(([key, count]) => (
-                  <div key={key} className="flex items-center justify-between text-sm">
+                  <Link
+                    key={key}
+                    href={`/ordens?${osBase}&status=${key}`}
+                    className="flex items-center justify-between rounded-md text-sm transition-colors hover:text-primary"
+                  >
                     <span className="text-muted-foreground">{STATUS_LABELS_SHORT[key]}</span>
                     <span className="font-semibold text-foreground">{count}</span>
-                  </div>
+                  </Link>
                 ))}
               </CardContent>
             </Card>
@@ -148,7 +168,14 @@ export default async function RelatoriosPage({
               title="Motivos de cancelamento"
               description="OS canceladas no período, por motivo"
             >
-              <SimpleBarChart data={sales.byCancellationReason} orientation="horizontal" />
+              <SimpleBarChart
+                data={sales.byCancellationReason.map((r) => ({
+                  name: r.name,
+                  count: r.count,
+                  href: `/ordens?${osBase}&status=CANCELADO&cancellationReasonId=${r.id ?? "NONE"}`,
+                }))}
+                orientation="horizontal"
+              />
             </ChartCard>
           </div>
 
@@ -174,7 +201,11 @@ export default async function RelatoriosPage({
                   ) : (
                     sales.orders.map((wo) => (
                       <tr key={wo.id} className="border-b border-border-subtle last:border-0">
-                        <td className="px-4 py-3 text-foreground">#{wo.number}</td>
+                        <td className="px-4 py-3 text-foreground">
+                          <Link href={`/ordens/${wo.id}`} className="hover:text-primary">
+                            #{wo.number}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3 text-foreground">{wo.client.name}</td>
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(wo.scheduledAt)}</td>
                         <td className="px-4 py-3">
@@ -200,20 +231,32 @@ export default async function RelatoriosPage({
               sublabel="cadastrados no período"
               icon={Users}
               color="violet"
+              href={`/clientes?${clBase}`}
             />
           </div>
           <ChartCard
             title="Como conheceram a loja"
             description="Novos clientes cadastrados no período, por origem"
           >
-            <SimpleBarChart data={referral.byReferral} orientation="horizontal" />
+            <SimpleBarChart
+              data={referral.byReferral.map((r) => ({
+                name: r.name,
+                count: r.count,
+                href: `/clientes?${clBase}&referralSource=${r.key}`,
+              }))}
+              orientation="horizontal"
+            />
           </ChartCard>
         </TabsContent>
 
         <TabsContent value="servicos">
           <ChartCard title="Serviços mais vendidos" description="Quantidade de vezes vendido no período">
             <SimpleBarChart
-              data={services.services.slice(0, 8).map((s) => ({ name: s.name, count: s.count }))}
+              data={services.services.slice(0, 8).map((s) => ({
+                name: s.name,
+                count: s.count,
+                href: `/ordens?${osBase}&statusNot=CANCELADO&service=${encodeURIComponent(s.name)}`,
+              }))}
               orientation="horizontal"
             />
           </ChartCard>
@@ -238,7 +281,14 @@ export default async function RelatoriosPage({
                   ) : (
                     services.services.map((s) => (
                       <tr key={s.name} className="border-b border-border-subtle last:border-0">
-                        <td className="px-4 py-3 text-foreground">{s.name}</td>
+                        <td className="px-4 py-3 text-foreground">
+                          <Link
+                            href={`/ordens?${osBase}&statusNot=CANCELADO&service=${encodeURIComponent(s.name)}`}
+                            className="hover:text-primary"
+                          >
+                            {s.name}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3 text-right text-foreground">{s.count}</td>
                         <td className="px-4 py-3 text-right font-medium text-foreground">
                           {formatCurrency(s.revenue)}

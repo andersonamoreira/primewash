@@ -1,5 +1,7 @@
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const COLOR_CLASSES = {
   blue: "bg-stat-blue/15 text-stat-blue",
@@ -16,15 +18,17 @@ export function StatTile({
   sublabel,
   icon: Icon,
   color = "blue",
+  href,
 }: {
   label: string;
   value: string;
   sublabel?: string;
   icon: LucideIcon;
   color?: keyof typeof COLOR_CLASSES;
+  href?: string;
 }) {
-  return (
-    <Card className="flex h-full min-w-0 items-center">
+  const card = (
+    <Card className={cn("flex h-full min-w-0 items-center", href && "transition-colors hover:border-primary/40")}>
       <CardContent className="w-full min-w-0 p-3 sm:p-5">
         {/* Mobile: icon + label on top, value gets the full card width below */}
         <div className="flex flex-col gap-1 sm:hidden">
@@ -58,4 +62,6 @@ export function StatTile({
       </CardContent>
     </Card>
   );
+
+  return href ? <Link href={href}>{card}</Link> : card;
 }

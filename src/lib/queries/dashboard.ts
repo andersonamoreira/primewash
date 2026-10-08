@@ -2,7 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { monthBoundsInAppTimeZone, getHourInAppTimeZone, formatDayKeyInAppTimeZone } from "@/lib/format";
 
 export async function getDashboardData(reference: Date = new Date()) {
-  const { start: monthStart, end: monthEnd, month, daysInMonth, today } = monthBoundsInAppTimeZone(reference);
+  const { start: monthStart, end: monthEnd, year, month, daysInMonth, today } = monthBoundsInAppTimeZone(reference);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const monthRange = { from: `${year}-${pad(month)}-01`, to: `${year}-${pad(month)}-${pad(daysInMonth)}` };
 
   const [monthOrders, upcomingCount, allTimeClients] = await Promise.all([
     prisma.workOrder.findMany({
@@ -23,13 +25,15 @@ export async function getDashboardData(reference: Date = new Date()) {
 
   const revenueThisMonth = completedOrders.reduce((sum, wo) => sum + Number(wo.totalAmount), 0);
 
-  const brandCounts = new Map<string, number>();
+  const brandCounts = new Map<string, { brand: string; model: string; count: number }>();
   for (const wo of activeOrders) {
     const key = `${wo.motorcycle.brand} ${wo.motorcycle.model}`;
-    brandCounts.set(key, (brandCounts.get(key) ?? 0) + 1);
+    const entry = brandCounts.get(key) ?? { brand: wo.motorcycle.brand, model: wo.motorcycle.model, count: 0 };
+    entry.count += 1;
+    brandCounts.set(key, entry);
   }
   const motosByBrand = Array.from(brandCounts.entries())
-    .map(([name, count]) => ({ name, count }))
+    .map(([name, { brand, model, count }]) => ({ name, brand, model, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
@@ -70,10 +74,14 @@ export async function getDashboardData(reference: Date = new Date()) {
   }
 
   const lastDay = Math.min(daysInMonth, today);
-  const revenueSeries: { date: string; total: number }[] = [];
+  const revenueSeries: { date: string; dateISO: string; total: number }[] = [];
   for (let day = 1; day <= lastDay; day++) {
     const key = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
-    revenueSeries.push({ date: key, total: dailyRevenue.get(key) ?? 0 });
+    revenueSeries.push({
+      date: key,
+      dateISO: `${year}-${pad(month)}-${pad(day)}`,
+      total: dailyRevenue.get(key) ?? 0,
+    });
   }
 
   return {
@@ -83,6 +91,7 @@ export async function getDashboardData(reference: Date = new Date()) {
       upcomingCount,
       totalClients: allTimeClients,
     },
+    monthRange,
     motosByBrand,
     topServices,
     byHour,

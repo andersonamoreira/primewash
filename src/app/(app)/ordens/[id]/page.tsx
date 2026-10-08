@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, User, Bike, CalendarClock, PackageCheck, CheckCircle2, XCircle, StickyNote, Printer } from "lucide-react";
+import { User, Bike, CalendarClock, PackageCheck, CheckCircle2, XCircle, StickyNote, Printer } from "lucide-react";
+import { BackLink } from "@/components/ui/back-link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,12 +56,7 @@ export default async function WorkOrderDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link
-        href="/ordens"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Voltar
-      </Link>
+      <BackLink fallbackHref="/ordens" />
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search, Bike, Phone, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Bike, Phone, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,13 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { daysSince, relativeDaysLabel } from "@/lib/format";
+import {
+  daysSince,
+  relativeDaysLabel,
+  dayStartInAppTimeZone,
+  dayEndExclusiveInAppTimeZone,
+  REFERRAL_SOURCE_LABELS,
+} from "@/lib/format";
 
 const SORT_KEYS = ["name", "motos", "lastVisit"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
@@ -21,22 +27,33 @@ type SortKey = (typeof SORT_KEYS)[number];
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; dir?: string; from?: string; to?: string; referralSource?: string }>;
 }) {
-  const { q, sort, dir } = await searchParams;
+  const { q, sort, dir, from, to, referralSource } = await searchParams;
 
   const sortKey: SortKey = SORT_KEYS.includes(sort as SortKey) ? (sort as SortKey) : "name";
   const sortDir: "asc" | "desc" = dir === "desc" ? "desc" : "asc";
 
   const clients = await prisma.client.findMany({
-    where: q
-      ? {
-          OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where: {
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { phone: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: dayStartInAppTimeZone(from) } : {}),
+              ...(to ? { lt: dayEndExclusiveInAppTimeZone(to) } : {}),
+            },
+          }
+        : {}),
+      ...(referralSource ? { referralSource: referralSource === "NONE" ? null : (referralSource as never) } : {}),
+    },
     orderBy: { name: "asc" },
     include: {
       _count: { select: { motorcycles: true } },
@@ -66,10 +83,35 @@ export default async function ClientsPage({
   function sortHref(key: SortKey) {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (referralSource) params.set("referralSource", referralSource);
     params.set("sort", key);
     params.set("dir", sortKey === key && sortDir === "asc" ? "desc" : "asc");
     return `/clientes?${params.toString()}`;
   }
+
+  function clearHref(keys: ("from" | "to" | "referralSource")[]) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (from && !keys.includes("from")) params.set("from", from);
+    if (to && !keys.includes("to")) params.set("to", to);
+    if (referralSource && !keys.includes("referralSource")) params.set("referralSource", referralSource);
+    if (sort) params.set("sort", sort);
+    if (dir) params.set("dir", dir);
+    return params.size > 0 ? `/clientes?${params.toString()}` : "/clientes";
+  }
+
+  const chips = [
+    (from || to) && {
+      label: `Período: ${from ?? "…"} a ${to ?? "…"}`,
+      href: clearHref(["from", "to"]),
+    },
+    referralSource && {
+      label: `Origem: ${referralSource === "NONE" ? "Não informado" : (REFERRAL_SOURCE_LABELS[referralSource] ?? referralSource)}`,
+      href: clearHref(["referralSource"]),
+    },
+  ].filter((c): c is { label: string; href: string } => Boolean(c));
 
   function SortIcon({ column }: { column: SortKey }) {
     if (sortKey !== column) return <ArrowUpDown className="size-3.5 opacity-40" />;
@@ -107,7 +149,25 @@ export default async function ClientsPage({
         </Button>
       </div>
 
+      {chips.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <Link
+              key={chip.label}
+              href={chip.href}
+              className="flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-xs font-medium text-pw-blue-300 transition-colors hover:bg-primary/25"
+            >
+              {chip.label}
+              <X className="size-3" />
+            </Link>
+          ))}
+        </div>
+      )}
+
       <form className="mb-5 flex max-w-sm items-center gap-2">
+        {from && <input type="hidden" name="from" value={from} />}
+        {to && <input type="hidden" name="to" value={to} />}
+        {referralSource && <input type="hidden" name="referralSource" value={referralSource} />}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input name="q" defaultValue={q} placeholder="Buscar por nome ou telefone" className="pl-9" />
