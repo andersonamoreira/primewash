@@ -12,6 +12,7 @@ import {
   PAYMENT_METHOD_LABELS,
   WORK_ORDER_STATUS_LABELS,
 } from "@/lib/format";
+import { netWorkOrderAmount } from "@/lib/credit-card-fees";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
@@ -32,6 +33,7 @@ type SearchParams = {
   service?: string;
   moto?: string;
   hour?: string;
+  hasDiscount?: string;
 };
 
 export default async function WorkOrdersPage({
@@ -40,7 +42,7 @@ export default async function WorkOrdersPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const { status, statusNot, from, to, paymentMethod, cancellationReasonId, service, moto, hour } = sp;
+  const { status, statusNot, from, to, paymentMethod, cancellationReasonId, service, moto, hour, hasDiscount } = sp;
 
   const [workOrdersRaw, cancellationReason] = await Promise.all([
     prisma.workOrder.findMany({
@@ -71,6 +73,7 @@ export default async function WorkOrdersPage({
               },
             }
           : {}),
+        ...(hasDiscount ? { discount: { gt: 0 } } : {}),
       },
       orderBy: { scheduledAt: "desc" },
       include: {
@@ -115,6 +118,7 @@ export default async function WorkOrdersPage({
       label: `Exceto: ${WORK_ORDER_STATUS_LABELS[statusNot] ?? statusNot}`,
       href: buildHref({ statusNot: undefined }),
     },
+    hasDiscount && { label: "Com desconto", href: buildHref({ hasDiscount: undefined }) },
   ].filter((c): c is { label: string; href: string } => Boolean(c));
 
   return (
@@ -211,35 +215,43 @@ export default async function WorkOrdersPage({
 
       {workOrders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border-strong p-10 text-center text-muted-foreground">
-          Nenhuma ordem de serviço encontrada.
+          {hasDiscount
+            ? "Nenhuma OS com desconto concedido neste período."
+            : "Nenhuma ordem de serviço encontrada."}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {workOrders.map((wo) => (
-            <Link
-              key={wo.id}
-              href={`/ordens/${wo.id}`}
-              className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface p-4 transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="font-medium text-foreground">
-                  OS #{wo.number} · {wo.client.name}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {wo.motorcycle.brand} {wo.motorcycle.model}
-                  {wo.motorcycle.plate ? ` (${wo.motorcycle.plate})` : ""} ·{" "}
-                  {wo.services.map((s) => (s.service?.name ?? s.customName)).join(", ") || "Sem serviços"}
-                </p>
-                <p className="text-xs text-muted-foreground">{formatDateTime(wo.scheduledAt)}</p>
-              </div>
-              <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
-                <WorkOrderStatusBadge status={wo.status} />
-                <span className="font-semibold text-foreground">
-                  {formatCurrency(wo.totalAmount.toString())}
-                </span>
-              </div>
-            </Link>
-          ))}
+          {workOrders.map((wo) => {
+            const total = Number(wo.totalAmount);
+            const net = netWorkOrderAmount(total, wo.paymentMethod, wo.cardFeePercent);
+            const hasFee = net !== total;
+            return (
+              <Link
+                key={wo.id}
+                href={`/ordens/${wo.id}`}
+                className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface p-4 transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium text-foreground">
+                    OS #{wo.number} · {wo.client.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {wo.motorcycle.brand} {wo.motorcycle.model}
+                    {wo.motorcycle.plate ? ` (${wo.motorcycle.plate})` : ""} ·{" "}
+                    {wo.services.map((s) => (s.service?.name ?? s.customName)).join(", ") || "Sem serviços"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(wo.scheduledAt)}</p>
+                </div>
+                <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
+                  <WorkOrderStatusBadge status={wo.status} />
+                  <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+                  {hasFee && (
+                    <span className="text-xs text-muted-foreground">líquido: {formatCurrency(net)}</span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

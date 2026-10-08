@@ -21,6 +21,7 @@ import {
   dayEndExclusiveInAppTimeZone,
   toDateTimeLocalValue,
 } from "@/lib/format";
+import { netWorkOrderAmount } from "@/lib/credit-card-fees";
 
 const STATUS_LABELS_SHORT: Record<string, string> = {
   AGENDADO: "Agendadas",
@@ -132,7 +133,7 @@ export default async function RelatoriosPage({
               sublabel="concedidos"
               icon={Percent}
               color="orange"
-              href={`/ordens?${osBase}&status=CONCLUIDO`}
+              href={`/ordens?${osBase}&status=CONCLUIDO&hasDiscount=1`}
             />
           </div>
 
@@ -202,23 +203,33 @@ export default async function RelatoriosPage({
                       </td>
                     </tr>
                   ) : (
-                    sales.orders.map((wo) => (
-                      <tr key={wo.id} className="border-b border-border-subtle last:border-0">
-                        <td className="px-4 py-3 text-foreground">
-                          <Link href={`/ordens/${wo.id}`} className="hover:text-primary">
-                            #{wo.number}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3 text-foreground">{wo.client.name}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{formatDate(wo.scheduledAt)}</td>
-                        <td className="px-4 py-3">
-                          <WorkOrderStatusBadge status={wo.status} />
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-foreground">
-                          {formatCurrency(wo.totalAmount.toString())}
-                        </td>
-                      </tr>
-                    ))
+                    sales.orders.map((wo) => {
+                      const total = Number(wo.totalAmount);
+                      const net = netWorkOrderAmount(total, wo.paymentMethod, wo.cardFeePercent);
+                      const hasFee = net !== total;
+                      return (
+                        <tr key={wo.id} className="border-b border-border-subtle last:border-0">
+                          <td className="px-4 py-3 text-foreground">
+                            <Link href={`/ordens/${wo.id}`} className="hover:text-primary">
+                              #{wo.number}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-foreground">{wo.client.name}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{formatDate(wo.scheduledAt)}</td>
+                          <td className="px-4 py-3">
+                            <WorkOrderStatusBadge status={wo.status} />
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-foreground">
+                            {formatCurrency(total)}
+                            {hasFee && (
+                              <p className="text-xs font-normal text-muted-foreground">
+                                líquido: {formatCurrency(net)}
+                              </p>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
