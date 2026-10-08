@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { REFERRAL_SOURCE_LABELS } from "@/lib/format";
+import { netWorkOrderAmount } from "@/lib/credit-card-fees";
 
 export type DateRange = { gte: Date; lt: Date };
 
@@ -11,12 +12,17 @@ export async function getSalesReport({ gte, lt }: DateRange) {
   });
 
   const completed = workOrders.filter((wo) => wo.status === "CONCLUIDO");
-  const revenue = completed.reduce((sum, wo) => sum + Number(wo.totalAmount), 0);
+  const revenue = completed.reduce(
+    (sum, wo) => sum + netWorkOrderAmount(Number(wo.totalAmount), wo.paymentMethod, wo.cardFeePercent),
+    0
+  );
   const totalDiscount = completed.reduce((sum, wo) => sum + Number(wo.discount), 0);
 
   const paymentTotals = { DEBITO: 0, CREDITO: 0, PIX: 0, DINHEIRO: 0 };
   for (const wo of completed) {
-    if (wo.paymentMethod) paymentTotals[wo.paymentMethod] += Number(wo.totalAmount);
+    if (wo.paymentMethod) {
+      paymentTotals[wo.paymentMethod] += netWorkOrderAmount(Number(wo.totalAmount), wo.paymentMethod, wo.cardFeePercent);
+    }
   }
 
   const statusCounts = { AGENDADO: 0, EM_ANDAMENTO: 0, CONCLUIDO: 0, CANCELADO: 0 };

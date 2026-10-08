@@ -36,7 +36,7 @@ export default async function DashboardPage() {
         <StatTile
           label="Faturamento"
           value={formatCurrency(data.stats.revenueThisMonth)}
-          sublabel="neste mês"
+          sublabel="neste mês · líquido de taxas"
           icon={Wallet}
           color="green"
           href={`/ordens?from=${monthFrom}&to=${monthTo}&status=CONCLUIDO`}
@@ -60,7 +60,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mb-6">
-        <ChartCard title="Faturamento no mês" description="Serviços concluídos por dia">
+        <ChartCard title="Faturamento no mês" description="Serviços concluídos por dia · valores líquidos de taxas">
           <RevenueChart
             data={data.revenueSeries.map((d) => ({
               ...d,
@@ -103,7 +103,10 @@ export default async function DashboardPage() {
           />
         </ChartCard>
 
-        <ChartCard title="Faturamento por forma de pagamento" description="Serviços concluídos neste mês">
+        <ChartCard
+          title="Faturamento por forma de pagamento"
+          description="Serviços concluídos neste mês · valores líquidos de taxas"
+        >
           <PaymentMethodBars
             totals={data.paymentTotals}
             hrefs={{

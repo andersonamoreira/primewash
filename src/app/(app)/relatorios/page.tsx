@@ -121,7 +121,7 @@ export default async function RelatoriosPage({
             <StatTile
               label="Faturamento"
               value={formatCurrency(sales.revenue)}
-              sublabel="serviços concluídos"
+              sublabel="serviços concluídos · líquido de taxas"
               icon={Wallet}
               color="green"
               href={`/ordens?${osBase}&status=CONCLUIDO`}
@@ -137,7 +137,7 @@ export default async function RelatoriosPage({
           </div>
 
           <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ChartCard title="Faturamento por forma de pagamento">
+            <ChartCard title="Faturamento por forma de pagamento" description="Valores líquidos de taxas">
               <PaymentMethodBars
                 totals={sales.paymentTotals}
                 hrefs={{
@@ -271,7 +271,7 @@ export default async function RelatoriosPage({
                   <tr className="border-b border-border-subtle text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-3 font-medium">Serviço</th>
                     <th className="px-4 py-3 text-right font-medium">Qtd. vendida</th>
-                    <th className="px-4 py-3 text-right font-medium">Faturamento</th>
+                    <th className="px-4 py-3 text-right font-medium">Valor vendido</th>
                   </tr>
                 </thead>
                 <tbody>

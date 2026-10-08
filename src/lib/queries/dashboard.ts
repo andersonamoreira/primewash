@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { monthBoundsInAppTimeZone, getHourInAppTimeZone, formatDayKeyInAppTimeZone } from "@/lib/format";
+import { netWorkOrderAmount } from "@/lib/credit-card-fees";
 
 export async function getDashboardData(reference: Date = new Date()) {
   const { start: monthStart, end: monthEnd, year, month, daysInMonth, today } = monthBoundsInAppTimeZone(reference);
@@ -23,7 +24,10 @@ export async function getDashboardData(reference: Date = new Date()) {
   const activeOrders = monthOrders.filter((wo) => wo.status !== "CANCELADO");
   const completedOrders = monthOrders.filter((wo) => wo.status === "CONCLUIDO");
 
-  const revenueThisMonth = completedOrders.reduce((sum, wo) => sum + Number(wo.totalAmount), 0);
+  const revenueThisMonth = completedOrders.reduce(
+    (sum, wo) => sum + netWorkOrderAmount(Number(wo.totalAmount), wo.paymentMethod, wo.cardFeePercent),
+    0
+  );
 
   const brandCounts = new Map<string, { brand: string; model: string; count: number }>();
   for (const wo of activeOrders) {
@@ -63,14 +67,15 @@ export async function getDashboardData(reference: Date = new Date()) {
   const paymentTotals = { DEBITO: 0, CREDITO: 0, PIX: 0, DINHEIRO: 0 };
   for (const wo of completedOrders) {
     if (wo.paymentMethod) {
-      paymentTotals[wo.paymentMethod] += Number(wo.totalAmount);
+      paymentTotals[wo.paymentMethod] += netWorkOrderAmount(Number(wo.totalAmount), wo.paymentMethod, wo.cardFeePercent);
     }
   }
 
   const dailyRevenue = new Map<string, number>();
   for (const wo of completedOrders) {
     const key = formatDayKeyInAppTimeZone(wo.finishedAt ?? wo.scheduledAt);
-    dailyRevenue.set(key, (dailyRevenue.get(key) ?? 0) + Number(wo.totalAmount));
+    const net = netWorkOrderAmount(Number(wo.totalAmount), wo.paymentMethod, wo.cardFeePercent);
+    dailyRevenue.set(key, (dailyRevenue.get(key) ?? 0) + net);
   }
 
   const lastDay = Math.min(daysInMonth, today);
